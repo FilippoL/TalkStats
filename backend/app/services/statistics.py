@@ -293,14 +293,21 @@ class StatisticsService:
         import os
         patterns = {}
         
-        # Path to bestemmie.txt (in data folder)
-        bestemmie_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
-            'data',
-            'bestemmie.txt'
-        )
+        # Try multiple paths for bestemmie.txt (local dev vs Docker)
+        possible_paths = [
+            # Docker path: /app/data/bestemmie.txt
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'bestemmie.txt'),
+            # Local dev path: project_root/data/bestemmie.txt
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'data', 'bestemmie.txt'),
+        ]
         
-        if not os.path.exists(bestemmie_path):
+        bestemmie_path = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                bestemmie_path = path
+                break
+        
+        if not bestemmie_path:
             # Fallback to basic patterns if file not found
             return {
                 'porco dio': re.compile(r'\bporco\s*di+o+\b', re.IGNORECASE),

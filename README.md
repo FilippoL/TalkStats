@@ -289,6 +289,6 @@ MIT - Do whatever you want with it.
 
 ---
 
-*Made with mass amounts of mass and probably too many WhatsApp messages*
+*Made with mass amounts of coffee and probably too many WhatsApp messages*
 
 

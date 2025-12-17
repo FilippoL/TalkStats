@@ -19,6 +19,9 @@ RUN python -c "import nltk; nltk.download('punkt', quiet=True); nltk.download('v
 # Copy application code
 COPY app/ ./app/
 
+# Copy data folder (bestemmie.txt etc.)
+COPY ../data/ ./data/
+
 # Expose port
 EXPOSE 8000
 

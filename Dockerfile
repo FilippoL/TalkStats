@@ -32,6 +32,9 @@ RUN python -c "import nltk; nltk.download('punkt', quiet=True); nltk.download('v
 # Copy backend code
 COPY backend/app/ ./app/
 
+# Copy data folder (bestemmie.txt etc.)
+COPY data/ ./data/
+
 # Copy frontend build from previous stage
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 

@@ -293,9 +293,10 @@ class StatisticsService:
         import os
         patterns = {}
         
-        # Path to bestemmie.txt (in project root)
+        # Path to bestemmie.txt (in data folder)
         bestemmie_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+            'data',
             'bestemmie.txt'
         )
         

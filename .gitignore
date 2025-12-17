@@ -39,4 +39,11 @@ Thumbs.db
 # Frontend
 frontend/dist/
 
+# Chat exports (test data)
+*.txt
+!README.txt
+_chat.txt
+WhatsApp*.txt
 
+# Memory bank PDFs
+memory-bank/*.pdf

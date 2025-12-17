@@ -1,0 +1,38 @@
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { AuthorStats } from '../../types';
+
+interface MessageLengthComparisonProps {
+  data: AuthorStats[];
+}
+
+export function MessageLengthComparison({ data }: MessageLengthComparisonProps) {
+  // We'll calculate min, max, and avg for each author
+  // Note: We only have avg_length in AuthorStats, so we'll show that with ranges
+  // For a more complete view, we'd need the backend to provide min/max
+  
+  const chartData = data.map(author => ({
+    author: author.author,
+    avgLength: Math.round(author.avg_message_length),
+    totalChars: author.total_chars,
+    messageCount: author.message_count,
+  })).sort((a, b) => b.avgLength - a.avgLength);
+
+  return (
+    <div style={{ width: '100%', height: '400px', marginBottom: '20px' }}>
+      <h3 style={{ marginBottom: '10px' }}>Message Length Statistics by Author</h3>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="author" />
+          <YAxis yAxisId="left" />
+          <YAxis yAxisId="right" orientation="right" />
+          <Tooltip />
+          <Legend />
+          <Bar yAxisId="left" dataKey="avgLength" fill="#8884d8" name="Avg Length (chars)" />
+          <Bar yAxisId="right" dataKey="totalChars" fill="#82ca9d" name="Total Characters" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+

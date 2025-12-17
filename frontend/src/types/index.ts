@@ -63,6 +63,27 @@ export interface BestemmiometroData {
   by_author: Record<string, Record<string, number>>;
   by_author_total: Record<string, number>;
   total: number;
+  per_capita: Record<string, number>;
+  total_per_capita: number;
+  consecutive_streaks: ConsecutiveStreak[];
+  climax_instances: ClimaxInstance[];
+  climax_by_author: Record<string, number>;
+  avg_climax_intensity: number;
+  timeline: Record<string, number>;
+}
+
+export interface ConsecutiveStreak {
+  author: string;
+  count: number;
+  timestamp: string | null;
+}
+
+export interface ClimaxInstance {
+  author: string;
+  timestamp: string | null;
+  text: string;
+  intensity: number;
+  repetitions: number;
 }
 
 export interface WordFrequencyItem {

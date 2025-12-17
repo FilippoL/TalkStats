@@ -1,28 +1,28 @@
-# WhatsApp Conversation Analyzer 📊💬
+# WhatsApp Conversation Analyzer
 
 > Ever wondered who sends the most messages in your group chat? Or what time your friends are most active? Maybe you're curious about the overall *vibe* of your conversations? Well, wonder no more!
 
 A full-stack web app that turns your boring WhatsApp chat exports into beautiful, insightful analytics. No login required, no data stored on servers - just pure chat analysis goodness.
 
-**🚀 Live Demo: [whatsapp-conv-analyzer.fly.dev](https://whatsapp-conv-analyzer.fly.dev)**
+**Live Demo: [whatsapp-conv-analyzer.fly.dev](https://whatsapp-conv-analyzer.fly.dev)**
 
 ---
 
-## ✨ What Can It Do?
+## What Can It Do?
 
-### 📈 Statistics & Analytics
+### Statistics & Analytics
 - **Message counts** per author - finally settle who's the chattiest
 - **Time-based analysis** - are you a morning person or a midnight messenger?
 - **Word frequency** - discover your group's favorite words (stopwords filtered for EN/IT)
 - **Message length stats** - who writes novels vs who sends "ok" 
 
-### 😊😢😠 Sentiment Analysis
+### Sentiment Analysis
 Using VADER (Valence Aware Dictionary and sEntiment Reasoner) with custom Italian emotion keywords:
 - **Positive / Negative / Neutral** classification
 - **Emotion detection**: joy, anger, sadness, fear
 - **Sentiment over time** - track the mood evolution of your chat
 
-### 🇮🇹 Bestemmiometro (The Blasphemy Meter)
+### Bestemmiometro (The Blasphemy Meter)
 A *very serious* feature for Italian chats that tracks... let's say *colorful expressions*:
 - `porco dio` / `dio porco`
 - `porca madonna`  
@@ -30,7 +30,7 @@ A *very serious* feature for Italian chats that tracks... let's say *colorful ex
 
 Complete with per-author rankings, pie charts, and stacked bar visualizations. Because science.
 
-### 📊 12 Interactive Visualizations
+### 12 Interactive Visualizations
 1. **Message Timeline** - messages over time
 2. **Hourly Timeline** - activity by hour of day
 3. **Author Activity** - per-author comparison
@@ -44,7 +44,7 @@ Complete with per-author rankings, pie charts, and stacked bar visualizations. B
 11. **Media Statistics** - images, videos, audio, stickers
 12. **Bestemmiometro** - the sacred blasphemy charts
 
-### 🎛️ Filter Everything
+### Filter Everything
 - Filter by **author** (multi-select)
 - Filter by **date range** (with date picker)
 - Filter by **sentiment** type
@@ -52,7 +52,7 @@ Complete with per-author rankings, pie charts, and stacked bar visualizations. B
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Backend
 - **FastAPI 0.104.1** - Modern Python web framework with automatic OpenAPI docs
@@ -77,7 +77,7 @@ Complete with per-author rankings, pie charts, and stacked bar visualizations. B
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Python 3.11+
@@ -111,7 +111,7 @@ The Vite dev server proxies `/api/*` requests to the backend automatically.
 
 ---
 
-## 🐳 Docker Deployment
+## Docker Deployment
 
 ### Local Docker Build
 
@@ -138,7 +138,7 @@ fly open
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 WhatsAppConvAnalyzer/
@@ -179,7 +179,7 @@ WhatsAppConvAnalyzer/
 
 ---
 
-## 📱 How to Export WhatsApp Chats
+## How to Export WhatsApp Chats
 
 ### On Android
 1. Open WhatsApp → Go to the chat
@@ -212,7 +212,7 @@ The parser handles multiple WhatsApp export formats:
 
 ---
 
-## 🔌 API Reference
+## API Reference
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -236,7 +236,7 @@ The parser handles multiple WhatsApp export formats:
 
 ---
 
-## 🧠 How It Works
+## How It Works
 
 ### 1. Parsing
 The WhatsApp parser uses dual regex patterns to handle both dash and bracket formats. It:
@@ -263,7 +263,7 @@ In-memory caching per upload session. Data is **not persisted** - when you close
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 PRs welcome! Some ideas:
 - [ ] More WhatsApp export format support
@@ -274,13 +274,13 @@ PRs welcome! Some ideas:
 
 ---
 
-## 📜 License
+## License
 
 MIT - Do whatever you want with it.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [NLTK](https://www.nltk.org/) for VADER sentiment
 - [Recharts](https://recharts.org/) for beautiful charts
@@ -289,6 +289,6 @@ MIT - Do whatever you want with it.
 
 ---
 
-*Made with ☕ and probably too many WhatsApp messages*
+*Made with mass amounts of mass and probably too many WhatsApp messages*
 
 

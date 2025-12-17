@@ -1,66 +1,94 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { BestemmiometroData } from '../../types';
 
 interface BestemmiometroProps {
   data: BestemmiometroData;
 }
 
-interface AuthorBestemmiometroData {
-  author: string;
-  total: number;
-  'porco dio': number;
-  'dio porco': number;
-  'porca madonna': number;
-  'dio cane': number;
-}
-
-const PHRASE_COLORS: Record<string, string> = {
-  'porco dio': '#DC2626',      // Red
-  'dio porco': '#B91C1C',      // Dark Red
-  'porca madonna': '#7C3AED',  // Purple
-  'dio cane': '#EA580C',       // Orange
+// Generate colors for phrases dynamically
+const generateColor = (index: number): string => {
+  const colors = [
+    '#DC2626', '#B91C1C', '#7C3AED', '#EA580C', '#059669',
+    '#2563EB', '#D97706', '#7C2D12', '#4338CA', '#BE185D',
+    '#0D9488', '#65A30D', '#C026D3', '#0891B2', '#DB2777'
+  ];
+  return colors[index % colors.length];
 };
 
 export function Bestemmiometro({ data }: BestemmiometroProps) {
+  // If no bestemmie found, don't render the section at all
   if (data.total === 0) {
-    return (
-      <div style={{ 
-        width: '100%', 
-        padding: '40px', 
-        textAlign: 'center',
-        backgroundColor: '#f0fdf4',
-        borderRadius: '12px',
-        border: '2px solid #86efac',
-        marginBottom: '20px'
-      }}>
-        <h3 style={{ marginBottom: '10px', fontSize: '24px' }}>Bestemmiometro</h3>
-        <p style={{ color: '#166534', fontSize: '18px' }}>
-          Nessuna bestemmia trovata! Chat pulita!
-        </p>
-      </div>
-    );
+    return null;
   }
 
-  // Prepare data for phrase pie chart
-  const phraseData = Object.entries(data.by_phrase)
+  // Get phrases that have counts > 0
+  const phraseEntries = Object.entries(data.by_phrase)
     .filter(([_, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1]);
+  
+  // Create color mapping for phrases
+  const phraseColors: Record<string, string> = {};
+  phraseEntries.forEach(([phrase], index) => {
+    phraseColors[phrase] = generateColor(index);
+  });
+
+  // Prepare data for phrase pie chart (top 10)
+  const phraseData = phraseEntries
+    .slice(0, 10)
     .map(([phrase, count]) => ({
       name: phrase,
       value: count,
-      color: PHRASE_COLORS[phrase] || '#666',
+      color: phraseColors[phrase],
     }));
 
   // Prepare data for author bar chart
-  const authorData: AuthorBestemmiometroData[] = Object.entries(data.by_author_total)
+  const authorData = Object.entries(data.by_author_total)
     .sort((a, b) => b[1] - a[1])
-    .map(([author, total]) => ({
+    .map(([author, total]) => {
+      const authorPhrases: Record<string, number | string> = { author, total };
+      // Add each phrase count for this author
+      Object.entries(data.by_author[author] || {}).forEach(([phrase, count]) => {
+        authorPhrases[phrase] = count;
+      });
+      return authorPhrases;
+    });
+
+  // Prepare per-capita data
+  const perCapitaData = Object.entries(data.per_capita)
+    .sort((a, b) => b[1] - a[1])
+    .map(([author, rate]) => ({
       author,
-      total,
-      'porco dio': data.by_author[author]?.['porco dio'] || 0,
-      'dio porco': data.by_author[author]?.['dio porco'] || 0,
-      'porca madonna': data.by_author[author]?.['porca madonna'] || 0,
-      'dio cane': data.by_author[author]?.['dio cane'] || 0,
+      rate,
+      tooltip: `${rate} bestemmie per 100 messaggi`
     }));
+
+  // Prepare timeline data
+  const timelineData = Object.entries(data.timeline)
+    .map(([timestamp, count]) => ({
+      timestamp: new Date(timestamp).toLocaleDateString('it-IT', { month: 'short', day: 'numeric' }),
+      count
+    }));
+
+  // Prepare consecutive streaks data
+  const streakData = data.consecutive_streaks
+    .slice(0, 5)
+    .map((streak, index) => ({
+      position: index + 1,
+      author: streak.author,
+      count: streak.count,
+      date: streak.timestamp ? new Date(streak.timestamp).toLocaleDateString('it-IT') : 'N/A'
+    }));
+
+  // Prepare climax intensity data
+  const climaxByAuthor = Object.entries(data.climax_by_author)
+    .sort((a, b) => b[1] - a[1])
+    .map(([author, count]) => ({
+      author,
+      count
+    }));
+
+  // Top 5 phrases for the stacked bar chart
+  const topPhrases = phraseEntries.slice(0, 5).map(([phrase]) => phrase);
 
   return (
     <div style={{ 
@@ -80,23 +108,55 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
         Bestemmiometro
       </h3>
       
-      {/* Total Counter */}
-      <div style={{
-        textAlign: 'center',
-        marginBottom: '30px',
-        padding: '20px',
-        backgroundColor: '#DC2626',
-        borderRadius: '8px',
-        color: 'white',
-      }}>
-        <div style={{ fontSize: '48px', fontWeight: 'bold' }}>{data.total}</div>
-        <div style={{ fontSize: '18px' }}>Bestemmie Totali</div>
+      {/* Summary Stats Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px', marginBottom: '30px' }}>
+        <div style={{
+          textAlign: 'center',
+          padding: '15px',
+          backgroundColor: '#DC2626',
+          borderRadius: '8px',
+          color: 'white',
+        }}>
+          <div style={{ fontSize: '36px', fontWeight: 'bold' }}>{data.total}</div>
+          <div style={{ fontSize: '14px' }}>Totale</div>
+        </div>
+        <div style={{
+          textAlign: 'center',
+          padding: '15px',
+          backgroundColor: '#B91C1C',
+          borderRadius: '8px',
+          color: 'white',
+        }}>
+          <div style={{ fontSize: '36px', fontWeight: 'bold' }}>{data.total_per_capita}</div>
+          <div style={{ fontSize: '14px' }}>Per 100 msg</div>
+        </div>
+        <div style={{
+          textAlign: 'center',
+          padding: '15px',
+          backgroundColor: '#7C3AED',
+          borderRadius: '8px',
+          color: 'white',
+        }}>
+          <div style={{ fontSize: '36px', fontWeight: 'bold' }}>{Object.keys(data.by_phrase).length}</div>
+          <div style={{ fontSize: '14px' }}>Tipi Diversi</div>
+        </div>
+        <div style={{
+          textAlign: 'center',
+          padding: '15px',
+          backgroundColor: '#EA580C',
+          borderRadius: '8px',
+          color: 'white',
+        }}>
+          <div style={{ fontSize: '36px', fontWeight: 'bold' }}>{data.climax_instances.length}</div>
+          <div style={{ fontSize: '14px' }}>Climax Rilevati</div>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+      {/* Main Charts Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
         {/* Pie Chart by Phrase */}
         <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '15px' }}>
-          <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Per Tipologia</h4>
+          <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Top 10 Bestemmie</h4>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -104,7 +164,9 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, value, percent }: { name: string; value: number; percent: number }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                label={({ name, percent }: { name: string; percent: number }) => 
+                  `${name.length > 15 ? name.slice(0, 12) + '...' : name}: ${(percent * 100).toFixed(0)}%`
+                }
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -113,67 +175,206 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip formatter={(value: number, name: string) => [value, name]} />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Bar Chart by Author */}
+        {/* Per Capita Bar Chart */}
         <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '15px' }}>
-          <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Per Autore</h4>
+          <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Bestemmie per 100 Messaggi (Per Capita)</h4>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={authorData} layout="vertical">
+            <BarChart data={perCapitaData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
-              <YAxis dataKey="author" type="category" width={100} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="porco dio" stackId="a" fill={PHRASE_COLORS['porco dio']} name="Porco Dio" />
-              <Bar dataKey="dio porco" stackId="a" fill={PHRASE_COLORS['dio porco']} name="Dio Porco" />
-              <Bar dataKey="porca madonna" stackId="a" fill={PHRASE_COLORS['porca madonna']} name="Porca Madonna" />
-              <Bar dataKey="dio cane" stackId="a" fill={PHRASE_COLORS['dio cane']} name="Dio Cane" />
+              <YAxis dataKey="author" type="category" width={100} tick={{ fontSize: 12 }} />
+              <Tooltip formatter={(value: number) => [`${value} per 100 msg`, 'Tasso']} />
+              <Bar dataKey="rate" fill="#DC2626" name="Per Capita" />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
+      {/* Timeline */}
+      {timelineData.length > 1 && (
+        <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '15px', marginBottom: '20px' }}>
+          <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Andamento nel Tempo</h4>
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={timelineData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="timestamp" tick={{ fontSize: 10 }} />
+              <YAxis />
+              <Tooltip />
+              <Area type="monotone" dataKey="count" stroke="#DC2626" fill="#FECACA" name="Bestemmie" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Stacked Bar by Author */}
+      <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '15px', marginBottom: '20px' }}>
+        <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Dettaglio per Autore (Top 5 Bestemmie)</h4>
+        <ResponsiveContainer width="100%" height={Math.max(200, authorData.length * 40)}>
+          <BarChart data={authorData} layout="vertical">
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis type="number" />
+            <YAxis dataKey="author" type="category" width={100} tick={{ fontSize: 12 }} />
+            <Tooltip />
+            <Legend />
+            {topPhrases.map((phrase, index) => (
+              <Bar 
+                key={phrase}
+                dataKey={phrase} 
+                stackId="a" 
+                fill={phraseColors[phrase] || generateColor(index)} 
+                name={phrase}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Patterns Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+        {/* Consecutive Streaks */}
+        {streakData.length > 0 && (
+          <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '15px' }}>
+            <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Record Bestemmie Consecutive</h4>
+            <p style={{ fontSize: '12px', color: '#666', textAlign: 'center', marginBottom: '10px' }}>
+              Messaggi consecutivi con bestemmie dallo stesso autore
+            </p>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#FEE2E2' }}>
+                  <th style={{ padding: '8px', textAlign: 'center' }}>#</th>
+                  <th style={{ padding: '8px', textAlign: 'left' }}>Autore</th>
+                  <th style={{ padding: '8px', textAlign: 'center' }}>Streak</th>
+                  <th style={{ padding: '8px', textAlign: 'center' }}>Data</th>
+                </tr>
+              </thead>
+              <tbody>
+                {streakData.map((streak) => (
+                  <tr key={`${streak.author}-${streak.date}`}>
+                    <td style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>{streak.position}</td>
+                    <td style={{ padding: '8px' }}>{streak.author}</td>
+                    <td style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', color: '#DC2626' }}>
+                      {streak.count} msg
+                    </td>
+                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px' }}>{streak.date}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Climax Pattern Analysis */}
+        {data.climax_instances.length > 0 && (
+          <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '15px' }}>
+            <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Analisi Climax</h4>
+            <p style={{ fontSize: '12px', color: '#666', textAlign: 'center', marginBottom: '10px' }}>
+              Bestemmie con vocali ripetute (es: dioooo, madonnaaaa)
+            </p>
+            <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#FEF2F2', borderRadius: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                <span>Totale Climax:</span>
+                <strong>{data.climax_instances.length}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Intensita Media:</span>
+                <strong>{data.avg_climax_intensity}/5</strong>
+              </div>
+            </div>
+            {climaxByAuthor.length > 0 && (
+              <ResponsiveContainer width="100%" height={150}>
+                <BarChart data={climaxByAuthor.slice(0, 5)} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="author" type="category" width={80} tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#7C3AED" name="Climax" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Ranking Table */}
       <div style={{ 
-        marginTop: '20px', 
         backgroundColor: 'white', 
         borderRadius: '8px', 
         padding: '15px' 
       }}>
         <h4 style={{ marginBottom: '15px', textAlign: 'center' }}>Classifica Bestemmiatori</h4>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ backgroundColor: '#FEE2E2' }}>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #FECACA' }}>Posizione</th>
-              <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #FECACA' }}>Autore</th>
-              <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #FECACA' }}>Porco Dio</th>
-              <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #FECACA' }}>Dio Porco</th>
-              <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #FECACA' }}>Porca Madonna</th>
-              <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #FECACA' }}>Dio Cane</th>
-              <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #FECACA' }}>Totale</th>
-            </tr>
-          </thead>
-          <tbody>
-            {authorData.map((author, index) => (
-              <tr key={author.author} style={{ backgroundColor: index % 2 === 0 ? '#FFF' : '#FEF2F2' }}>
-                <td style={{ padding: '10px', fontWeight: 'bold' }}>
-                  {index + 1}.
-                </td>
-                <td style={{ padding: '10px' }}>{author.author}</td>
-                <td style={{ padding: '10px', textAlign: 'center' }}>{author['porco dio'] || 0}</td>
-                <td style={{ padding: '10px', textAlign: 'center' }}>{author['dio porco'] || 0}</td>
-                <td style={{ padding: '10px', textAlign: 'center' }}>{author['porca madonna'] || 0}</td>
-                <td style={{ padding: '10px', textAlign: 'center' }}>{author['dio cane'] || 0}</td>
-                <td style={{ padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>{author.total}</td>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#FEE2E2' }}>
+                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #FECACA' }}>Pos</th>
+                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #FECACA' }}>Autore</th>
+                <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #FECACA' }}>Totale</th>
+                <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #FECACA' }}>Per Capita</th>
+                {topPhrases.slice(0, 4).map(phrase => (
+                  <th key={phrase} style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #FECACA', fontSize: '12px' }}>
+                    {phrase.length > 12 ? phrase.slice(0, 10) + '..' : phrase}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {authorData.map((author, index) => (
+                <tr key={author.author as string} style={{ backgroundColor: index % 2 === 0 ? '#FFF' : '#FEF2F2' }}>
+                  <td style={{ padding: '10px', fontWeight: 'bold' }}>
+                    {index === 0 ? '1.' : index === 1 ? '2.' : index === 2 ? '3.' : `${index + 1}.`}
+                  </td>
+                  <td style={{ padding: '10px' }}>{author.author}</td>
+                  <td style={{ padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>{author.total}</td>
+                  <td style={{ padding: '10px', textAlign: 'center', color: '#DC2626' }}>
+                    {data.per_capita[author.author as string] || 0}
+                  </td>
+                  {topPhrases.slice(0, 4).map(phrase => (
+                    <td key={phrase} style={{ padding: '10px', textAlign: 'center' }}>
+                      {(author[phrase] as number) || 0}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* Sample Climax Examples */}
+      {data.climax_instances.length > 0 && (
+        <div style={{ 
+          marginTop: '20px',
+          backgroundColor: 'white', 
+          borderRadius: '8px', 
+          padding: '15px' 
+        }}>
+          <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Esempi di Climax Rilevati</h4>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
+            {data.climax_instances.slice(0, 10).map((climax, index) => (
+              <div 
+                key={index}
+                style={{ 
+                  padding: '8px 12px', 
+                  backgroundColor: `rgba(124, 58, 237, ${0.2 + climax.intensity * 0.15})`,
+                  borderRadius: '20px',
+                  fontSize: '14px',
+                  border: '1px solid #7C3AED'
+                }}
+              >
+                <span style={{ fontWeight: 'bold' }}>{climax.text}</span>
+                <span style={{ marginLeft: '5px', fontSize: '12px', color: '#666' }}>
+                  (x{climax.repetitions})
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

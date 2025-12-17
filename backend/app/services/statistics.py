@@ -285,34 +285,143 @@ class StatisticsService:
         """Extract all message lengths for histogram visualization."""
         return [len(msg.content) for msg in messages if msg.content and not msg.is_media]
     
+    def _load_bestemmie_patterns(self) -> Dict[str, re.Pattern]:
+        """
+        Load blasphemy patterns from bestemmie.txt file.
+        Creates regex patterns that handle both spaced and unspaced variants.
+        """
+        import os
+        patterns = {}
+        
+        # Path to bestemmie.txt (in project root)
+        bestemmie_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+            'bestemmie.txt'
+        )
+        
+        if not os.path.exists(bestemmie_path):
+            # Fallback to basic patterns if file not found
+            return {
+                'porco dio': re.compile(r'\bporco\s*di+o+\b', re.IGNORECASE),
+                'dio porco': re.compile(r'\bdio\s*porco\b', re.IGNORECASE),
+                'porca madonna': re.compile(r'\bporca\s*madonna\b', re.IGNORECASE),
+                'dio cane': re.compile(r'\bdio\s*cane\b', re.IGNORECASE),
+            }
+        
+        seen_patterns = set()
+        with open(bestemmie_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                phrase = line.strip().lower()
+                if not phrase or phrase in seen_patterns:
+                    continue
+                seen_patterns.add(phrase)
+                
+                # Create pattern that handles:
+                # 1. Optional spaces between words
+                # 2. Repeated final vowels for climax detection (e.g., diooo, porcooo)
+                # Split into words and create flexible pattern
+                words = phrase.split()
+                if len(words) >= 2:
+                    # Multi-word: allow optional spaces
+                    # e.g., "porco dio" -> r'\bporco\s*dio+\b'
+                    pattern_str = r'\b' + r'\s*'.join(re.escape(w) for w in words) + r'\b'
+                elif len(words) == 1:
+                    # Single word (like "diocane", "diomerda")
+                    pattern_str = r'\b' + re.escape(phrase) + r'\b'
+                else:
+                    continue
+                
+                # Normalize pattern name (canonical form with space)
+                canonical = ' '.join(words) if len(words) > 1 else phrase
+                
+                try:
+                    patterns[canonical] = re.compile(pattern_str, re.IGNORECASE)
+                except re.error:
+                    continue
+        
+        return patterns
+    
+    def _detect_climax_patterns(self, content: str) -> List[Dict[str, Any]]:
+        """
+        Detect climax patterns where vowels are repeated for emphasis.
+        E.g., "porco diooooo", "diooooo", "madonnaaaa"
+        Returns list of detected climax instances with intensity score.
+        """
+        climax_matches = []
+        content_lower = content.lower()
+        
+        # Pattern to find words ending in repeated vowels (3+ repetitions)
+        # This captures the emotional intensity/"climax" of the expression
+        climax_pattern = re.compile(
+            r'\b(\w*?)((?:dio|porco|madonna|cane|merda|bestia|boia|maiale)\w*?)([aeiou])\3{2,}\b',
+            re.IGNORECASE
+        )
+        
+        for match in climax_pattern.finditer(content_lower):
+            full_match = match.group(0)
+            repeated_vowel = match.group(3)
+            repetitions = len(full_match) - len(full_match.rstrip(repeated_vowel)) + 1
+            
+            # Intensity score based on repetitions (3 = mild, 5+ = intense)
+            intensity = min(repetitions - 2, 5)  # Cap at 5
+            
+            climax_matches.append({
+                'text': full_match,
+                'intensity': intensity,
+                'repetitions': repetitions
+            })
+        
+        return climax_matches
+    
     def _compute_bestemmiometro(self, messages: List[Message]) -> Dict[str, Any]:
         """
         Compute Bestemmiometro statistics - counts of Italian blasphemies.
         
-        Tracks specific phrases: 'porco dio', 'dio porco', 'porca madonna', 'dio cane'
-        Handles variants with or without spaces (e.g., 'porcodio', 'diop0rco').
-        Returns counts by phrase, by author, and total.
+        Features:
+        - Loads patterns from bestemmie.txt file
+        - Normalizes text to lowercase
+        - Detects climax patterns (repeated vowels like "diooooo")
+        - Tracks consecutive bestemmie in messages
+        - Provides per-capita stats (bestemmie per 100 messages)
+        
+        Returns counts by phrase, by author, total, patterns, and per-capita stats.
         """
-        # Define the blasphemy patterns (case insensitive)
-        # \s* allows optional whitespace between words
-        BLASPHEMY_PATTERNS = {
-            'porco dio': re.compile(r'\bporco\s*dio\b', re.IGNORECASE),
-            'dio porco': re.compile(r'\bdio\s*porco\b', re.IGNORECASE),
-            'porca madonna': re.compile(r'\bporca\s*madonna\b', re.IGNORECASE),
-            'dio cane': re.compile(r'\bdio\s*cane\b', re.IGNORECASE),
-        }
+        # Load patterns from file
+        BLASPHEMY_PATTERNS = self._load_bestemmie_patterns()
         
         # Initialize counters
         by_phrase = {phrase: 0 for phrase in BLASPHEMY_PATTERNS}
         by_author = defaultdict(lambda: {phrase: 0 for phrase in BLASPHEMY_PATTERNS})
         by_author_total = defaultdict(int)
+        by_author_message_count = defaultdict(int)
         total = 0
         
+        # Track consecutive patterns and climax
+        consecutive_bestemmie = []  # List of (author, count, timestamp) for consecutive msgs
+        climax_instances = []  # List of climax detections
+        current_streak = {'author': None, 'count': 0, 'start_timestamp': None}
+        
+        # Track bestemmie over time for patterns
+        bestemmie_timeline = defaultdict(int)
+        
+        prev_msg_had_bestemmia = False
+        prev_author = None
+        
         for msg in messages:
-            if msg.is_system or msg.is_media or not msg.content:
+            if msg.is_system:
                 continue
-                
-            content = msg.content
+            
+            # Count messages per author (for per-capita calculation)
+            by_author_message_count[msg.author] += 1
+            
+            if msg.is_media or not msg.content:
+                prev_msg_had_bestemmia = False
+                continue
+            
+            # IMPORTANT: Normalize to lowercase for analysis
+            content = msg.content.lower()
+            msg_bestemmia_count = 0
+            
             for phrase, pattern in BLASPHEMY_PATTERNS.items():
                 matches = len(pattern.findall(content))
                 if matches > 0:
@@ -320,12 +429,100 @@ class StatisticsService:
                     by_author[msg.author][phrase] += matches
                     by_author_total[msg.author] += matches
                     total += matches
+                    msg_bestemmia_count += matches
+            
+            # Detect climax patterns
+            climax_in_msg = self._detect_climax_patterns(content)
+            for climax in climax_in_msg:
+                climax_instances.append({
+                    'author': msg.author,
+                    'timestamp': msg.timestamp.isoformat() if msg.timestamp else None,
+                    **climax
+                })
+            
+            # Track consecutive bestemmie (same author, consecutive messages)
+            if msg_bestemmia_count > 0:
+                # Track timeline
+                time_key = msg.timestamp.replace(minute=0, second=0, microsecond=0)
+                bestemmie_timeline[time_key.isoformat()] += msg_bestemmia_count
+                
+                if prev_msg_had_bestemmia and prev_author == msg.author:
+                    # Continue streak
+                    current_streak['count'] += 1
+                else:
+                    # Save previous streak if it was >= 2
+                    if current_streak['count'] >= 2:
+                        consecutive_bestemmie.append({
+                            'author': current_streak['author'],
+                            'count': current_streak['count'],
+                            'timestamp': current_streak['start_timestamp']
+                        })
+                    # Start new streak
+                    current_streak = {
+                        'author': msg.author,
+                        'count': 1,
+                        'start_timestamp': msg.timestamp.isoformat() if msg.timestamp else None
+                    }
+                prev_msg_had_bestemmia = True
+                prev_author = msg.author
+            else:
+                # No bestemmia in this message
+                if current_streak['count'] >= 2:
+                    consecutive_bestemmie.append({
+                        'author': current_streak['author'],
+                        'count': current_streak['count'],
+                        'timestamp': current_streak['start_timestamp']
+                    })
+                current_streak = {'author': None, 'count': 0, 'start_timestamp': None}
+                prev_msg_had_bestemmia = False
+                prev_author = msg.author
+        
+        # Don't forget last streak
+        if current_streak['count'] >= 2:
+            consecutive_bestemmie.append({
+                'author': current_streak['author'],
+                'count': current_streak['count'],
+                'timestamp': current_streak['start_timestamp']
+            })
+        
+        # Calculate per-capita stats (bestemmie per 100 messages)
+        per_capita = {}
+        for author, bestemmia_count in by_author_total.items():
+            msg_count = by_author_message_count.get(author, 1)
+            per_capita[author] = round((bestemmia_count / msg_count) * 100, 2) if msg_count > 0 else 0
+        
+        # Calculate total per-capita
+        total_messages = sum(by_author_message_count.values())
+        total_per_capita = round((total / total_messages) * 100, 2) if total_messages > 0 else 0
+        
+        # Get top phrases (filter out zeros and sort by count)
+        top_phrases = sorted(
+            [(phrase, count) for phrase, count in by_phrase.items() if count > 0],
+            key=lambda x: x[1],
+            reverse=True
+        )[:20]  # Top 20
+        
+        # Climax statistics
+        climax_by_author = defaultdict(int)
+        total_intensity = 0
+        for climax in climax_instances:
+            climax_by_author[climax['author']] += 1
+            total_intensity += climax['intensity']
+        
+        avg_climax_intensity = round(total_intensity / len(climax_instances), 2) if climax_instances else 0
         
         return {
-            'by_phrase': by_phrase,
-            'by_author': {author: dict(counts) for author, counts in by_author.items()},
+            'by_phrase': {phrase: count for phrase, count in top_phrases},
+            'by_author': {author: {p: c for p, c in counts.items() if c > 0} for author, counts in by_author.items() if by_author_total[author] > 0},
             'by_author_total': dict(by_author_total),
             'total': total,
+            'per_capita': per_capita,
+            'total_per_capita': total_per_capita,
+            'consecutive_streaks': sorted(consecutive_bestemmie, key=lambda x: x['count'], reverse=True)[:10],
+            'climax_instances': climax_instances[:50],  # Limit to 50
+            'climax_by_author': dict(climax_by_author),
+            'avg_climax_intensity': avg_climax_intensity,
+            'timeline': dict(sorted(bestemmie_timeline.items())),
         }
 
     def _compute_hourly_breakdown(self, messages: List[Message]) -> List[TimeSeriesDataPoint]:

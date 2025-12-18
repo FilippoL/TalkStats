@@ -1,73 +1,79 @@
 import { useState, useEffect } from 'react';
-import { useStats } from '../hooks/useStats';
-import { StatsResponse, WordFrequencyResponse, InsightResponse } from '../types';
+import { useStats, getLanguage } from '../hooks/useStats';
+import { StatsResponse, WordFrequencyResponse, InsightResponse, EmojiStatsResponse } from '../types';
+import { getTranslations, t, Language } from '../i18n/translations';
 import { StatsCard } from './StatsCard';
 import { AuthorSelector } from './AuthorSelector';
 import { TimeRangeSelector } from './TimeRangeSelector';
-import { SentimentFilter } from './SentimentFilter';
 import { MessageTimeline } from './charts/MessageTimeline';
 import { HourlyTimeline } from './charts/HourlyTimeline';
 import { AuthorActivity } from './charts/AuthorActivity';
-import { SentimentDistributionChart } from './charts/SentimentDistribution';
 import { WordFrequency } from './charts/WordFrequency';
 import { ActivityHeatmap } from './charts/ActivityHeatmap';
 import { MessageLengthDistribution } from './charts/MessageLengthDistribution';
 import { MessageLengthHistogram } from './charts/MessageLengthHistogram';
 import { MessageLengthComparison } from './charts/MessageLengthComparison';
-import { SentimentOverTime } from './charts/SentimentOverTime';
 import { MediaStatistics } from './charts/MediaStatistics';
 import { Bestemmiometro } from './charts/Bestemmiometro';
+import { EmojiStatistics } from './charts/EmojiStatistics';
 
 export function Dashboard() {
-  const { getStats, getWordFrequency, getInsights, loading, error } = useStats();
+  const { getStats, getWordFrequency, getInsights, getEmojiStats, loading, error } = useStats();
   
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [wordFreq, setWordFreq] = useState<WordFrequencyResponse | null>(null);
   const [insights, setInsights] = useState<InsightResponse | null>(null);
+  const [emojiStats, setEmojiStats] = useState<EmojiStatsResponse | null>(null);
   
   const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
   const [timeGroup, setTimeGroup] = useState<string>('day');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  const [selectedSentiment, setSelectedSentiment] = useState<string | undefined>();
+
+  // Get language from session storage
+  const lang = (getLanguage() || 'en') as Language;
+  const tr = getTranslations(lang);
 
   useEffect(() => {
     loadData();
-  }, [selectedAuthors, timeGroup, startDate, endDate, selectedSentiment]);
+  }, [selectedAuthors, timeGroup, startDate, endDate]);
 
   const loadData = async () => {
     try {
-      const [statsData, wordFreqData, insightsData] = await Promise.all([
+      const [statsData, wordFreqData, insightsData, emojiData] = await Promise.all([
         getStats({
           authors: selectedAuthors.length > 0 ? selectedAuthors : undefined,
           startDate: startDate || undefined,
           endDate: endDate || undefined,
           timeGroup,
-          sentiment: selectedSentiment,
           groupByAuthor: true,
-          groupBySentiment: true,
         }),
         getWordFrequency({
           authors: selectedAuthors.length > 0 ? selectedAuthors : undefined,
           startDate: startDate || undefined,
           endDate: endDate || undefined,
-          sentiment: selectedSentiment,
           limit: 50,
           minLength: 1,
         }),
         getInsights(),
+        getEmojiStats({
+          authors: selectedAuthors.length > 0 ? selectedAuthors : undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+        }),
       ]);
       
       setStats(statsData);
       setWordFreq(wordFreqData);
       setInsights(insightsData);
+      setEmojiStats(emojiData);
     } catch (err) {
       console.error('Failed to load data:', err);
     }
   };
 
   if (loading && !stats) {
-    return <div style={{ padding: '20px', textAlign: 'center' }}>Loading dashboard...</div>;
+    return <div style={{ padding: '20px', textAlign: 'center' }}>{tr.loadingDashboard}</div>;
   }
 
   if (error && !stats) {
@@ -80,8 +86,6 @@ export function Dashboard() {
 
   return (
     <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
-      <h1 style={{ marginBottom: '30px' }}>WhatsApp Conversation Dashboard</h1>
-      
       {/* Filters */}
       <div style={{ 
         backgroundColor: '#f5f5f5', 
@@ -89,10 +93,11 @@ export function Dashboard() {
         borderRadius: '8px', 
         marginBottom: '30px' 
       }}>
-        <h2 style={{ marginBottom: '20px', fontSize: '20px' }}>Filters</h2>
+        <h2 style={{ marginBottom: '20px', fontSize: '20px' }}>{tr.filters}</h2>
         <AuthorSelector 
           selectedAuthors={selectedAuthors}
           onSelectionChange={setSelectedAuthors}
+          lang={lang}
         />
         <TimeRangeSelector
           timeGroup={timeGroup}
@@ -101,10 +106,7 @@ export function Dashboard() {
           endDate={endDate}
           onStartDateChange={setStartDate}
           onEndDateChange={setEndDate}
-        />
-        <SentimentFilter
-          selectedSentiment={selectedSentiment}
-          onSentimentChange={setSelectedSentiment}
+          lang={lang}
         />
       </div>
 
@@ -116,19 +118,19 @@ export function Dashboard() {
         marginBottom: '30px'
       }}>
         <StatsCard 
-          title="Total Messages" 
+          title={tr.totalMessages}
           value={stats.total_messages}
-          subtitle={`From ${stats.total_authors} authors`}
+          subtitle={t(tr.fromAuthors, { count: stats.total_authors })}
         />
         <StatsCard 
-          title="Unique Authors" 
+          title={tr.uniqueAuthors}
           value={stats.total_authors}
         />
         {stats.date_range.start && stats.date_range.end && (
           <StatsCard 
-            title="Date Range"
-            value={new Date(stats.date_range.start).toLocaleDateString()}
-            subtitle={`to ${new Date(stats.date_range.end).toLocaleDateString()}`}
+            title={tr.dateRange}
+            value={new Date(stats.date_range.start).toLocaleDateString(lang === 'it' ? 'it-IT' : 'en-US')}
+            subtitle={`${tr.to} ${new Date(stats.date_range.end).toLocaleDateString(lang === 'it' ? 'it-IT' : 'en-US')}`}
           />
         )}
       </div>
@@ -142,7 +144,7 @@ export function Dashboard() {
           padding: '20px',
           marginBottom: '30px'
         }}>
-          <h2 style={{ marginBottom: '15px' }}>Insights</h2>
+          <h2 style={{ marginBottom: '15px' }}>{tr.insights}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px' }}>
             {insights.insights.map((insight, idx) => (
               <div 
@@ -170,44 +172,40 @@ export function Dashboard() {
       <div style={{ display: 'grid', gap: '30px' }}>
         {/* Show hourly timeline when day grouping is selected (in addition to the regular timeline) */}
         {timeGroup === 'day' && stats.grouped_data?.hourly && stats.grouped_data.hourly.length > 0 && (
-          <HourlyTimeline data={stats.grouped_data.hourly} />
+          <HourlyTimeline data={stats.grouped_data.hourly} lang={lang} />
         )}
         
         {/* Regular timeline showing message count over time (from start date to end date) */}
         {stats.time_series.length > 0 && (
-          <MessageTimeline data={stats.time_series} timeGroup={timeGroup} />
+          <MessageTimeline data={stats.time_series} timeGroup={timeGroup} lang={lang} />
         )}
         
         {stats.author_stats.length > 0 && (
           <>
-            <AuthorActivity data={stats.author_stats} />
-            <MessageLengthDistribution data={stats.author_stats} />
-            <MessageLengthComparison data={stats.author_stats} />
+            <AuthorActivity data={stats.author_stats} lang={lang} />
+            <MessageLengthDistribution data={stats.author_stats} lang={lang} />
+            <MessageLengthComparison data={stats.author_stats} lang={lang} />
           </>
         )}
         
         {stats.grouped_data?.message_lengths && stats.grouped_data.message_lengths.length > 0 && (
-          <MessageLengthHistogram messageLengths={stats.grouped_data.message_lengths} />
-        )}
-        
-        {stats.sentiment_distribution && (
-          <SentimentDistributionChart data={stats.sentiment_distribution} />
-        )}
-        
-        {stats.grouped_data?.by_sentiment && Object.keys(stats.grouped_data.by_sentiment).length > 0 && (
-          <SentimentOverTime data={stats.grouped_data.by_sentiment} />
+          <MessageLengthHistogram messageLengths={stats.grouped_data.message_lengths} lang={lang} />
         )}
         
         {stats.media_stats && (
-          <MediaStatistics data={stats.media_stats} timeGroup={timeGroup} totalMessages={stats.total_messages} />
+          <MediaStatistics data={stats.media_stats} timeGroup={timeGroup} totalMessages={stats.total_messages} lang={lang} />
         )}
         
         {stats.time_series.length > 0 && timeGroup === 'hour' && (
-          <ActivityHeatmap data={stats.time_series} />
+          <ActivityHeatmap data={stats.time_series} lang={lang} />
         )}
         
         {wordFreq && wordFreq.words.length > 0 && (
-          <WordFrequency data={wordFreq.words} limit={30} />
+          <WordFrequency data={wordFreq.words} limit={30} lang={lang} />
+        )}
+        
+        {emojiStats && emojiStats.total_emojis > 0 && (
+          <EmojiStatistics data={emojiStats} lang={lang} />
         )}
         
         {stats.grouped_data?.bestemmiometro && (

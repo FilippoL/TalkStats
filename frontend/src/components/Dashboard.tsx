@@ -24,6 +24,7 @@ export function Dashboard() {
   const [wordFreq, setWordFreq] = useState<WordFrequencyResponse | null>(null);
   const [insights, setInsights] = useState<InsightResponse | null>(null);
   const [emojiStats, setEmojiStats] = useState<EmojiStatsResponse | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   
   const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
   const [timeGroup, setTimeGroup] = useState<string>('day');
@@ -33,6 +34,22 @@ export function Dashboard() {
   // Get language from session storage
   const lang = (getLanguage() || 'en') as Language;
   const tr = getTranslations(lang);
+
+  // Simulated progress for loading bar
+  useEffect(() => {
+    if (loading && !stats) {
+      setLoadingProgress(0);
+      const interval = setInterval(() => {
+        setLoadingProgress(prev => {
+          if (prev >= 90) return prev; // Cap at 90% until actually loaded
+          return prev + Math.random() * 15;
+        });
+      }, 200);
+      return () => clearInterval(interval);
+    } else if (stats) {
+      setLoadingProgress(100);
+    }
+  }, [loading, stats]);
 
   useEffect(() => {
     loadData();
@@ -73,7 +90,45 @@ export function Dashboard() {
   };
 
   if (loading && !stats) {
-    return <div style={{ padding: '20px', textAlign: 'center' }}>{tr.loadingDashboard}</div>;
+    return (
+      <div style={{ 
+        padding: '60px 20px', 
+        textAlign: 'center',
+        maxWidth: '500px',
+        margin: '0 auto'
+      }}>
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ fontSize: '48px', marginBottom: '10px' }}>📊</div>
+          <h2 style={{ margin: '0 0 8px 0', color: '#333' }}>{tr.loadingDashboard}</h2>
+          <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
+            {lang === 'it' ? 'Analizzando i tuoi messaggi...' : 'Analyzing your messages...'}
+          </p>
+        </div>
+        
+        {/* Progress bar container */}
+        <div style={{
+          width: '100%',
+          height: '8px',
+          backgroundColor: '#e0e0e0',
+          borderRadius: '4px',
+          overflow: 'hidden',
+          marginBottom: '10px'
+        }}>
+          {/* Progress bar fill */}
+          <div style={{
+            width: `${loadingProgress}%`,
+            height: '100%',
+            backgroundColor: '#007bff',
+            borderRadius: '4px',
+            transition: 'width 0.3s ease-out'
+          }} />
+        </div>
+        
+        <div style={{ color: '#999', fontSize: '12px' }}>
+          {Math.round(loadingProgress)}%
+        </div>
+      </div>
+    );
   }
 
   if (error && !stats) {

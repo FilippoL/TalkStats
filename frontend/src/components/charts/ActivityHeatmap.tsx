@@ -1,30 +1,38 @@
 import React from 'react';
 import { TimeSeriesDataPoint } from '../../types';
+import { getTranslations, Language } from '../../i18n/translations';
 
 interface ActivityHeatmapProps {
   data: TimeSeriesDataPoint[];
+  lang: Language;
 }
 
-export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
+export function ActivityHeatmap({ data, lang }: ActivityHeatmapProps) {
+  const tr = getTranslations(lang);
+  
+  // Day names in selected language
+  const days = [tr.monday, tr.tuesday, tr.wednesday, tr.thursday, tr.friday, tr.saturday, tr.sunday];
+  const dayKeys = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  
   // Group by day of week and hour
   const heatmapData: { [key: string]: number } = {};
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   
   data.forEach(point => {
     const date = new Date(point.timestamp);
-    const dayOfWeek = days[date.getDay() === 0 ? 6 : date.getDay() - 1]; // Convert Sunday=0 to Sunday=6
+    const dayOfWeek = dayKeys[date.getDay() === 0 ? 6 : date.getDay() - 1]; // Convert Sunday=0 to Sunday=6
     const hour = date.getHours();
     const key = `${dayOfWeek}-${hour}`;
     heatmapData[key] = (heatmapData[key] || 0) + point.value;
   });
 
   // Create grid data
-  const gridData: Array<{ day: string; hour: number; value: number }> = [];
-  days.forEach(day => {
+  const gridData: Array<{ day: string; dayKey: string; hour: number; value: number }> = [];
+  dayKeys.forEach((dayKey, index) => {
     for (let hour = 0; hour < 24; hour++) {
-      const key = `${day}-${hour}`;
+      const key = `${dayKey}-${hour}`;
       gridData.push({
-        day,
+        day: days[index],
+        dayKey,
         hour,
         value: heatmapData[key] || 0,
       });
@@ -46,7 +54,7 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
 
   return (
     <div style={{ width: '100%', marginBottom: '20px' }}>
-      <h3 style={{ marginBottom: '10px' }}>Activity Heatmap (Day of Week vs Hour)</h3>
+      <h3 style={{ marginBottom: '10px' }}>{tr.activityHeatmap}</h3>
       <div style={{ 
         display: 'grid', 
         gridTemplateColumns: 'auto repeat(24, 1fr)',
@@ -62,13 +70,13 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
         ))}
         
         {/* Data rows */}
-        {days.map(day => (
+        {days.map((day, dayIndex) => (
           <React.Fragment key={day}>
             <div style={{ padding: '4px', fontWeight: 'bold', fontSize: '11px' }}>
               {day.substring(0, 3)}
             </div>
             {Array.from({ length: 24 }, (_, hour) => {
-              const cellData = gridData.find(d => d.day === day && d.hour === hour);
+              const cellData = gridData.find(d => d.dayKey === dayKeys[dayIndex] && d.hour === hour);
               const value = cellData?.value || 0;
               return (
                 <div
@@ -80,7 +88,7 @@ export function ActivityHeatmap({ data }: ActivityHeatmapProps) {
                     cursor: 'pointer',
                     minWidth: '20px',
                   }}
-                  title={`${day} ${hour}:00 - ${value} messages`}
+                  title={`${day} ${hour}:00 - ${value} ${tr.messages.toLowerCase()}`}
                 >
                   {value > 0 ? value : ''}
                 </div>

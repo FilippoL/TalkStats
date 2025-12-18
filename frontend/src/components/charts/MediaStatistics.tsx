@@ -1,14 +1,18 @@
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { MediaStats } from '../../types';
 import { format } from 'date-fns';
+import { getTranslations, Language } from '../../i18n/translations';
 
 interface MediaStatisticsProps {
   data: MediaStats;
   timeGroup: string;
   totalMessages: number;
+  lang: Language;
 }
 
-export function MediaStatistics({ data, timeGroup, totalMessages }: MediaStatisticsProps) {
+export function MediaStatistics({ data, timeGroup, totalMessages, lang }: MediaStatisticsProps) {
+  const tr = getTranslations(lang);
+  
   // Convert media_by_author to array for chart
   const mediaByAuthorData = Object.entries(data.media_by_author).map(([author, count]) => ({
     author,
@@ -23,13 +27,13 @@ export function MediaStatistics({ data, timeGroup, totalMessages }: MediaStatist
 
   return (
     <div style={{ width: '100%', marginBottom: '30px' }}>
-      <h3 style={{ marginBottom: '20px' }}>Media Statistics</h3>
+      <h3 style={{ marginBottom: '20px' }}>{tr.mediaStatistics}</h3>
       
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px', marginBottom: '30px' }}>
         {/* Media by Author - Bar Chart */}
         {mediaByAuthorData.length > 0 && (
           <div style={{ height: '400px' }}>
-            <h4 style={{ marginBottom: '10px', fontSize: '16px' }}>Media Messages by Author</h4>
+            <h4 style={{ marginBottom: '10px', fontSize: '16px' }}>{tr.mediaByAuthor}</h4>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={mediaByAuthorData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -37,7 +41,7 @@ export function MediaStatistics({ data, timeGroup, totalMessages }: MediaStatist
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="count" fill="#8884d8" name="Media Messages" />
+                <Bar dataKey="count" fill="#8884d8" name={tr.mediaMessages} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -45,13 +49,13 @@ export function MediaStatistics({ data, timeGroup, totalMessages }: MediaStatist
 
         {/* Media Distribution Pie Chart */}
         <div style={{ height: '400px' }}>
-          <h4 style={{ marginBottom: '10px', fontSize: '16px' }}>Media vs Text Messages</h4>
+          <h4 style={{ marginBottom: '10px', fontSize: '16px' }}>{tr.mediaVsText}</h4>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={[
-                  { name: 'Media', value: data.total_media },
-                  { name: 'Text', value: totalMessages - data.total_media },
+                  { name: tr.media, value: data.total_media },
+                  { name: tr.text, value: totalMessages - data.total_media },
                 ]}
                 cx="50%"
                 cy="50%"
@@ -74,7 +78,7 @@ export function MediaStatistics({ data, timeGroup, totalMessages }: MediaStatist
       {/* Media Over Time */}
       {formattedTimeSeries.length > 0 && (
         <div style={{ height: '400px' }}>
-          <h4 style={{ marginBottom: '10px', fontSize: '16px' }}>Media Messages Over Time</h4>
+          <h4 style={{ marginBottom: '10px', fontSize: '16px' }}>{tr.mediaOverTime}</h4>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={formattedTimeSeries}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -82,7 +86,7 @@ export function MediaStatistics({ data, timeGroup, totalMessages }: MediaStatist
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="value" stroke="#FF8042" name="Media Messages" />
+              <Line type="monotone" dataKey="value" stroke="#FF8042" name={tr.mediaMessages} />
             </LineChart>
           </ResponsiveContainer>
         </div>

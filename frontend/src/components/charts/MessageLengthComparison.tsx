@@ -1,11 +1,15 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { AuthorStats } from '../../types';
+import { getTranslations, Language } from '../../i18n/translations';
 
 interface MessageLengthComparisonProps {
   data: AuthorStats[];
+  lang: Language;
 }
 
-export function MessageLengthComparison({ data }: MessageLengthComparisonProps) {
+export function MessageLengthComparison({ data, lang }: MessageLengthComparisonProps) {
+  const tr = getTranslations(lang);
+  
   // We'll calculate min, max, and avg for each author
   // Note: We only have avg_length in AuthorStats, so we'll show that with ranges
   // For a more complete view, we'd need the backend to provide min/max
@@ -19,7 +23,7 @@ export function MessageLengthComparison({ data }: MessageLengthComparisonProps) 
 
   return (
     <div style={{ width: '100%', height: '400px', marginBottom: '20px' }}>
-      <h3 style={{ marginBottom: '10px' }}>Message Length Statistics by Author</h3>
+      <h3 style={{ marginBottom: '10px' }}>{tr.messageLengthStats}</h3>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -28,8 +32,8 @@ export function MessageLengthComparison({ data }: MessageLengthComparisonProps) 
           <YAxis yAxisId="right" orientation="right" />
           <Tooltip />
           <Legend />
-          <Bar yAxisId="left" dataKey="avgLength" fill="#8884d8" name="Avg Length (chars)" />
-          <Bar yAxisId="right" dataKey="totalChars" fill="#82ca9d" name="Total Characters" />
+          <Bar yAxisId="left" dataKey="avgLength" fill="#8884d8" name={tr.avgLength} />
+          <Bar yAxisId="right" dataKey="totalChars" fill="#82ca9d" name={tr.totalCharacters} />
         </BarChart>
       </ResponsiveContainer>
     </div>

@@ -1,10 +1,14 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { getTranslations, Language } from '../../i18n/translations';
 
 interface MessageLengthHistogramProps {
   messageLengths: number[];
+  lang: Language;
 }
 
-export function MessageLengthHistogram({ messageLengths }: MessageLengthHistogramProps) {
+export function MessageLengthHistogram({ messageLengths, lang }: MessageLengthHistogramProps) {
+  const tr = getTranslations(lang);
+  
   // Define bins for message length (0-50, 50-100, 100-200, 200-500, 500-1000, 1000+)
   const bins = [
     { range: '0-50', min: 0, max: 50 },
@@ -28,7 +32,7 @@ export function MessageLengthHistogram({ messageLengths }: MessageLengthHistogra
 
   return (
     <div style={{ width: '100%', height: '400px', marginBottom: '20px' }}>
-      <h3 style={{ marginBottom: '10px' }}>Message Length Distribution</h3>
+      <h3 style={{ marginBottom: '10px' }}>{tr.messageLengthDistribution}</h3>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={binData}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -36,7 +40,7 @@ export function MessageLengthHistogram({ messageLengths }: MessageLengthHistogra
           <YAxis />
           <Tooltip />
           <Legend />
-          <Bar dataKey="count" fill="#8884d8" name="Messages" />
+          <Bar dataKey="count" fill="#8884d8" name={tr.messages} />
         </BarChart>
       </ResponsiveContainer>
     </div>

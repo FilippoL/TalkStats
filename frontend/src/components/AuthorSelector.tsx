@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useStats } from '../hooks/useStats';
+import { getTranslations, Language } from '../i18n/translations';
 
 interface AuthorSelectorProps {
   selectedAuthors: string[];
   onSelectionChange: (authors: string[]) => void;
+  lang: Language;
 }
 
-export function AuthorSelector({ selectedAuthors, onSelectionChange }: AuthorSelectorProps) {
+export function AuthorSelector({ selectedAuthors, onSelectionChange, lang }: AuthorSelectorProps) {
   const { getAuthors } = useStats();
   const [authors, setAuthors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const tr = getTranslations(lang);
 
   useEffect(() => {
     const fetchAuthors = async () => {
@@ -35,13 +38,13 @@ export function AuthorSelector({ selectedAuthors, onSelectionChange }: AuthorSel
   };
 
   if (loading) {
-    return <div>Loading authors...</div>;
+    return <div>{tr.loadingAuthors}</div>;
   }
 
   return (
     <div style={{ marginBottom: '20px' }}>
       <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
-        Authors:
+        {tr.authors}
       </label>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
         {authors.map(author => (

@@ -5,6 +5,66 @@ interface BestemmiometroProps {
   data: BestemmiometroData;
 }
 
+// Language-specific labels
+const labels = {
+  it: {
+    title: 'Bestemmiometro',
+    total: 'Totale',
+    per100msg: 'Per 100 msg',
+    uniqueTypes: 'Tipi Diversi',
+    climaxDetected: 'Climax Rilevati',
+    top10Items: 'Top 10 Bestemmie',
+    perCapita: 'Bestemmie per 100 Messaggi (Per Capita)',
+    rate: 'Tasso',
+    timeline: 'Andamento nel Tempo',
+    itemName: 'Bestemmie',
+    authorDetail: 'Dettaglio per Autore (Top 5 Bestemmie)',
+    streakRecord: 'Record Bestemmie Consecutive',
+    streakDesc: 'Messaggi consecutivi con bestemmie dallo stesso autore',
+    climaxAnalysis: 'Analisi Climax',
+    climaxDesc: 'Bestemmie con vocali ripetute (es: dioooo, madonnaaaa)',
+    totalClimax: 'Totale Climax',
+    avgIntensity: 'Intensità Media',
+    ranking: 'Classifica Bestemmiatori',
+    position: 'Pos',
+    author: 'Autore',
+    perCapitaShort: 'Per Capita',
+    streak: 'Streak',
+    date: 'Data',
+    climaxExamples: 'Esempi di Climax Rilevati',
+    climax: 'Climax',
+    msg: 'msg',
+  },
+  en: {
+    title: 'Swear-O-Meter',
+    total: 'Total',
+    per100msg: 'Per 100 msg',
+    uniqueTypes: 'Unique Words',
+    climaxDetected: 'Emphasis Found',
+    top10Items: 'Top 10 Swear Words',
+    perCapita: 'Swear Words per 100 Messages (Per Capita)',
+    rate: 'Rate',
+    timeline: 'Trend Over Time',
+    itemName: 'Swear Words',
+    authorDetail: 'Detail by Author (Top 5 Words)',
+    streakRecord: 'Consecutive Swearing Records',
+    streakDesc: 'Consecutive messages with swear words by the same author',
+    climaxAnalysis: 'Emphasis Analysis',
+    climaxDesc: 'Swear words with repeated letters (e.g., fuuuck, shiiiit)',
+    totalClimax: 'Total Emphasis',
+    avgIntensity: 'Avg Intensity',
+    ranking: 'Swearers Ranking',
+    position: 'Pos',
+    author: 'Author',
+    perCapitaShort: 'Per Capita',
+    streak: 'Streak',
+    date: 'Date',
+    climaxExamples: 'Examples of Emphasized Words',
+    climax: 'Emphasis',
+    msg: 'msg',
+  },
+};
+
 // Generate colors for phrases dynamically
 const generateColor = (index: number): string => {
   const colors = [
@@ -16,10 +76,14 @@ const generateColor = (index: number): string => {
 };
 
 export function Bestemmiometro({ data }: BestemmiometroProps) {
-  // If no bestemmie found, don't render the section at all
+  // If no profanity found, don't render the section at all
   if (data.total === 0) {
     return null;
   }
+
+  // Get language from data, default to Italian
+  const lang = (data.language === 'en' ? 'en' : 'it') as keyof typeof labels;
+  const t = labels[lang];
 
   // Get phrases that have counts > 0
   const phraseEntries = Object.entries(data.by_phrase)
@@ -59,13 +123,13 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
     .map(([author, rate]) => ({
       author,
       rate,
-      tooltip: `${rate} bestemmie per 100 messaggi`
+      tooltip: `${rate} ${lang === 'it' ? 'bestemmie' : 'swear words'} per 100 ${lang === 'it' ? 'messaggi' : 'messages'}`
     }));
 
   // Prepare timeline data
   const timelineData = Object.entries(data.timeline)
     .map(([timestamp, count]) => ({
-      timestamp: new Date(timestamp).toLocaleDateString('it-IT', { month: 'short', day: 'numeric' }),
+      timestamp: new Date(timestamp).toLocaleDateString(lang === 'it' ? 'it-IT' : 'en-US', { month: 'short', day: 'numeric' }),
       count
     }));
 
@@ -76,7 +140,7 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
       position: index + 1,
       author: streak.author,
       count: streak.count,
-      date: streak.timestamp ? new Date(streak.timestamp).toLocaleDateString('it-IT') : 'N/A'
+      date: streak.timestamp ? new Date(streak.timestamp).toLocaleDateString(lang === 'it' ? 'it-IT' : 'en-US') : 'N/A'
     }));
 
   // Prepare climax intensity data
@@ -105,7 +169,7 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
         textAlign: 'center',
         color: '#991B1B'
       }}>
-        Bestemmiometro
+        {t.title}
       </h3>
       
       {/* Summary Stats Row */}
@@ -118,7 +182,7 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
           color: 'white',
         }}>
           <div style={{ fontSize: '36px', fontWeight: 'bold' }}>{data.total}</div>
-          <div style={{ fontSize: '14px' }}>Totale</div>
+          <div style={{ fontSize: '14px' }}>{t.total}</div>
         </div>
         <div style={{
           textAlign: 'center',
@@ -128,7 +192,7 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
           color: 'white',
         }}>
           <div style={{ fontSize: '36px', fontWeight: 'bold' }}>{data.total_per_capita}</div>
-          <div style={{ fontSize: '14px' }}>Per 100 msg</div>
+          <div style={{ fontSize: '14px' }}>{t.per100msg}</div>
         </div>
         <div style={{
           textAlign: 'center',
@@ -138,7 +202,7 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
           color: 'white',
         }}>
           <div style={{ fontSize: '36px', fontWeight: 'bold' }}>{Object.keys(data.by_phrase).length}</div>
-          <div style={{ fontSize: '14px' }}>Tipi Diversi</div>
+          <div style={{ fontSize: '14px' }}>{t.uniqueTypes}</div>
         </div>
         <div style={{
           textAlign: 'center',
@@ -148,7 +212,7 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
           color: 'white',
         }}>
           <div style={{ fontSize: '36px', fontWeight: 'bold' }}>{data.climax_instances.length}</div>
-          <div style={{ fontSize: '14px' }}>Climax Rilevati</div>
+          <div style={{ fontSize: '14px' }}>{t.climaxDetected}</div>
         </div>
       </div>
 
@@ -156,7 +220,7 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
         {/* Pie Chart by Phrase */}
         <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '15px' }}>
-          <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Top 10 Bestemmie</h4>
+          <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>{t.top10Items}</h4>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -182,14 +246,14 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
 
         {/* Per Capita Bar Chart */}
         <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '15px' }}>
-          <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Bestemmie per 100 Messaggi (Per Capita)</h4>
+          <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>{t.perCapita}</h4>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={perCapitaData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
               <YAxis dataKey="author" type="category" width={100} tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(value: number) => [`${value} per 100 msg`, 'Tasso']} />
-              <Bar dataKey="rate" fill="#DC2626" name="Per Capita" />
+              <Tooltip formatter={(value: number) => [`${value} per 100 ${t.msg}`, t.rate]} />
+              <Bar dataKey="rate" fill="#DC2626" name={t.perCapitaShort} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -198,14 +262,14 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
       {/* Timeline */}
       {timelineData.length > 1 && (
         <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '15px', marginBottom: '20px' }}>
-          <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Andamento nel Tempo</h4>
+          <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>{t.timeline}</h4>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={timelineData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="timestamp" tick={{ fontSize: 10 }} />
               <YAxis />
               <Tooltip />
-              <Area type="monotone" dataKey="count" stroke="#DC2626" fill="#FECACA" name="Bestemmie" />
+              <Area type="monotone" dataKey="count" stroke="#DC2626" fill="#FECACA" name={t.itemName} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -213,7 +277,7 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
 
       {/* Stacked Bar by Author */}
       <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '15px', marginBottom: '20px' }}>
-        <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Dettaglio per Autore (Top 5 Bestemmie)</h4>
+        <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>{t.authorDetail}</h4>
         <ResponsiveContainer width="100%" height={Math.max(200, authorData.length * 40)}>
           <BarChart data={authorData} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" />
@@ -239,17 +303,17 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
         {/* Consecutive Streaks */}
         {streakData.length > 0 && (
           <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '15px' }}>
-            <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Record Bestemmie Consecutive</h4>
+            <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>{t.streakRecord}</h4>
             <p style={{ fontSize: '12px', color: '#666', textAlign: 'center', marginBottom: '10px' }}>
-              Messaggi consecutivi con bestemmie dallo stesso autore
+              {t.streakDesc}
             </p>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
               <thead>
                 <tr style={{ backgroundColor: '#FEE2E2' }}>
                   <th style={{ padding: '8px', textAlign: 'center' }}>#</th>
-                  <th style={{ padding: '8px', textAlign: 'left' }}>Autore</th>
-                  <th style={{ padding: '8px', textAlign: 'center' }}>Streak</th>
-                  <th style={{ padding: '8px', textAlign: 'center' }}>Data</th>
+                  <th style={{ padding: '8px', textAlign: 'left' }}>{t.author}</th>
+                  <th style={{ padding: '8px', textAlign: 'center' }}>{t.streak}</th>
+                  <th style={{ padding: '8px', textAlign: 'center' }}>{t.date}</th>
                 </tr>
               </thead>
               <tbody>
@@ -258,7 +322,7 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
                     <td style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold' }}>{streak.position}</td>
                     <td style={{ padding: '8px' }}>{streak.author}</td>
                     <td style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', color: '#DC2626' }}>
-                      {streak.count} msg
+                      {streak.count} {t.msg}
                     </td>
                     <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px' }}>{streak.date}</td>
                   </tr>
@@ -271,17 +335,17 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
         {/* Climax Pattern Analysis */}
         {data.climax_instances.length > 0 && (
           <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '15px' }}>
-            <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Analisi Climax</h4>
+            <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>{t.climaxAnalysis}</h4>
             <p style={{ fontSize: '12px', color: '#666', textAlign: 'center', marginBottom: '10px' }}>
-              Bestemmie con vocali ripetute (es: dioooo, madonnaaaa)
+              {t.climaxDesc}
             </p>
             <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#FEF2F2', borderRadius: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                <span>Totale Climax:</span>
+                <span>{t.totalClimax}:</span>
                 <strong>{data.climax_instances.length}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Intensita Media:</span>
+                <span>{t.avgIntensity}:</span>
                 <strong>{data.avg_climax_intensity}/5</strong>
               </div>
             </div>
@@ -292,7 +356,7 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
                   <XAxis type="number" />
                   <YAxis dataKey="author" type="category" width={80} tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#7C3AED" name="Climax" />
+                  <Bar dataKey="count" fill="#7C3AED" name={t.climax} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -306,15 +370,15 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
         borderRadius: '8px', 
         padding: '15px' 
       }}>
-        <h4 style={{ marginBottom: '15px', textAlign: 'center' }}>Classifica Bestemmiatori</h4>
+        <h4 style={{ marginBottom: '15px', textAlign: 'center' }}>{t.ranking}</h4>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
             <thead>
               <tr style={{ backgroundColor: '#FEE2E2' }}>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #FECACA' }}>Pos</th>
-                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #FECACA' }}>Autore</th>
-                <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #FECACA' }}>Totale</th>
-                <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #FECACA' }}>Per Capita</th>
+                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #FECACA' }}>{t.position}</th>
+                <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #FECACA' }}>{t.author}</th>
+                <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #FECACA' }}>{t.total}</th>
+                <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #FECACA' }}>{t.perCapitaShort}</th>
                 {topPhrases.slice(0, 4).map(phrase => (
                   <th key={phrase} style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #FECACA', fontSize: '12px' }}>
                     {phrase.length > 12 ? phrase.slice(0, 10) + '..' : phrase}
@@ -353,7 +417,7 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
           borderRadius: '8px', 
           padding: '15px' 
         }}>
-          <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>Esempi di Climax Rilevati</h4>
+          <h4 style={{ marginBottom: '10px', textAlign: 'center' }}>{t.climaxExamples}</h4>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
             {data.climax_instances.slice(0, 10).map((climax, index) => (
               <div 

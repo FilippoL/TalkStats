@@ -1,7 +1,7 @@
 from .statistics import StatisticsService
-from .sentiment import SentimentAnalyzer
 from .word_analysis import WordAnalyzer
 from .insights import InsightsGenerator
+from .emoji_analysis import EmojiAnalyzer
 
-__all__ = ["StatisticsService", "SentimentAnalyzer", "WordAnalyzer", "InsightsGenerator"]
+__all__ = ["StatisticsService", "WordAnalyzer", "InsightsGenerator", "EmojiAnalyzer"]
 

@@ -6,7 +6,7 @@ import re
 
 from ..models.message import Message
 from ..models.stats import (
-    StatsResponse, AuthorStats, SentimentDistribution,
+    StatsResponse, AuthorStats,
     TimeSeriesDataPoint, MediaStats
 )
 
@@ -14,16 +14,16 @@ from ..models.stats import (
 class StatisticsService:
     """Service for computing conversation statistics."""
     
-    def __init__(self, messages: List[Message]):
+    def __init__(self, messages: List[Message], language: str = 'en'):
         self.messages = messages
         self.filtered_messages = messages
+        self.language = language
     
     def filter_messages(
         self,
         authors: Optional[List[str]] = None,
         start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        sentiment: Optional[str] = None
+        end_date: Optional[datetime] = None
     ) -> 'StatisticsService':
         """Filter messages and return a new service instance with filtered data."""
         filtered = self.messages
@@ -37,17 +37,13 @@ class StatisticsService:
         if end_date:
             filtered = [m for m in filtered if m.timestamp <= end_date]
         
-        if sentiment:
-            filtered = [m for m in filtered if m.sentiment == sentiment]
-        
-        service = StatisticsService(filtered)
+        service = StatisticsService(filtered, language=self.language)
         return service
     
     def compute_stats(
         self,
         time_group: str = 'day',
-        group_by_author: bool = False,
-        group_by_sentiment: bool = False
+        group_by_author: bool = False
     ) -> StatsResponse:
         """
         Compute comprehensive statistics.
@@ -55,7 +51,6 @@ class StatisticsService:
         Args:
             time_group: One of 'hour', 'day', 'week', 'month'
             group_by_author: Whether to include author-specific stats
-            group_by_sentiment: Whether to include sentiment-specific stats
         """
         messages = self.filtered_messages
         user_messages = [m for m in messages if not m.is_system]
@@ -78,9 +73,6 @@ class StatisticsService:
         # Author stats
         author_stats = self._compute_author_stats(user_messages)
         
-        # Sentiment distribution
-        sentiment_dist = self._compute_sentiment_distribution(user_messages)
-        
         # Media statistics
         media_stats = self._compute_media_stats(user_messages, time_group)
         
@@ -96,8 +88,6 @@ class StatisticsService:
         grouped_data = {}
         if group_by_author:
             grouped_data['by_author'] = self._group_by_author(user_messages, time_group)
-        if group_by_sentiment:
-            grouped_data['by_sentiment'] = self._group_by_sentiment(user_messages, time_group)
         if hourly_breakdown:
             grouped_data['hourly'] = hourly_breakdown
         
@@ -112,7 +102,6 @@ class StatisticsService:
             total_authors=total_authors,
             date_range=date_range,
             author_stats=author_stats,
-            sentiment_distribution=sentiment_dist,
             media_stats=media_stats,
             time_series=time_series,
             grouped_data=grouped_data
@@ -145,32 +134,6 @@ class StatisticsService:
         # Sort by message count descending
         stats.sort(key=lambda x: x.message_count, reverse=True)
         return stats
-    
-    def _compute_sentiment_distribution(self, messages: List[Message]) -> SentimentDistribution:
-        """Compute sentiment distribution."""
-        dist = SentimentDistribution()
-        
-        for msg in messages:
-            if not msg.sentiment:
-                continue
-            
-            sentiment = msg.sentiment.lower()
-            if sentiment == 'positive':
-                dist.positive += 1
-            elif sentiment == 'negative':
-                dist.negative += 1
-            elif sentiment == 'neutral':
-                dist.neutral += 1
-            elif sentiment == 'joy':
-                dist.joy += 1
-            elif sentiment == 'anger':
-                dist.anger += 1
-            elif sentiment == 'sadness':
-                dist.sadness += 1
-            elif sentiment == 'fear':
-                dist.fear += 1
-        
-        return dist
     
     def _compute_time_series(
         self,
@@ -230,30 +193,6 @@ class StatisticsService:
         
         return result
     
-    def _group_by_sentiment(
-        self,
-        messages: List[Message],
-        time_group: str
-    ) -> Dict[str, List[TimeSeriesDataPoint]]:
-        """Group messages by sentiment and time."""
-        sentiment_groups = defaultdict(lambda: defaultdict(int))
-        
-        for msg in messages:
-            if not msg.sentiment:
-                continue
-            sentiment = msg.sentiment.lower()
-            time_key = self._get_time_key(msg.timestamp, time_group)
-            sentiment_groups[sentiment][time_key] += 1
-        
-        result = {}
-        for sentiment, time_data in sentiment_groups.items():
-            result[sentiment] = [
-                TimeSeriesDataPoint(timestamp=key, value=count)
-                for key, count in sorted(time_data.items())
-            ]
-        
-        return result
-    
     def _compute_media_stats(
         self,
         messages: List[Message],
@@ -285,61 +224,72 @@ class StatisticsService:
         """Extract all message lengths for histogram visualization."""
         return [len(msg.content) for msg in messages if msg.content and not msg.is_media]
     
-    def _load_bestemmie_patterns(self) -> Dict[str, re.Pattern]:
+    def _load_profanity_patterns(self) -> Dict[str, re.Pattern]:
         """
-        Load blasphemy patterns from bestemmie.txt file.
-        Creates regex patterns that handle both spaced and unspaced variants.
+        Load profanity patterns based on language.
+        Italian: bestemmie.txt (blasphemies)
+        English: swearwords.txt (profanity)
         """
         import os
         patterns = {}
         
-        # Try multiple paths for bestemmie.txt (local dev vs Docker)
+        # Select file based on language
+        filename = 'bestemmie.txt' if self.language == 'it' else 'swearwords.txt'
+        
+        # Try multiple paths (local dev vs Docker)
         possible_paths = [
-            # Docker path: /app/data/bestemmie.txt
-            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'bestemmie.txt'),
-            # Local dev path: project_root/data/bestemmie.txt
-            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'data', 'bestemmie.txt'),
+            # Docker path: /app/data/
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', filename),
+            # Local dev path: project_root/data/
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'data', filename),
         ]
         
-        bestemmie_path = None
+        file_path = None
         for path in possible_paths:
             if os.path.exists(path):
-                bestemmie_path = path
+                file_path = path
                 break
         
-        if not bestemmie_path:
-            # Fallback to basic patterns if file not found
-            return {
-                'porco dio': re.compile(r'\bporco\s*di+o+\b', re.IGNORECASE),
-                'dio porco': re.compile(r'\bdio\s*porco\b', re.IGNORECASE),
-                'porca madonna': re.compile(r'\bporca\s*madonna\b', re.IGNORECASE),
-                'dio cane': re.compile(r'\bdio\s*cane\b', re.IGNORECASE),
-            }
+        if not file_path:
+            # Fallback patterns based on language
+            if self.language == 'it':
+                return {
+                    'porco dio': re.compile(r'\bporco\s*di+o+\b', re.IGNORECASE),
+                    'dio porco': re.compile(r'\bdio\s*porco\b', re.IGNORECASE),
+                    'porca madonna': re.compile(r'\bporca\s*madonna\b', re.IGNORECASE),
+                    'dio cane': re.compile(r'\bdio\s*cane\b', re.IGNORECASE),
+                }
+            else:
+                return {
+                    'fuck': re.compile(r'\bfuck\w*\b', re.IGNORECASE),
+                    'shit': re.compile(r'\bshit\w*\b', re.IGNORECASE),
+                    'damn': re.compile(r'\bdamn\w*\b', re.IGNORECASE),
+                    'ass': re.compile(r'\bass(?:hole)?\b', re.IGNORECASE),
+                }
         
         seen_patterns = set()
-        with open(bestemmie_path, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             for line in f:
                 phrase = line.strip().lower()
                 if not phrase or phrase in seen_patterns:
                     continue
                 seen_patterns.add(phrase)
                 
-                # Create pattern that handles:
-                # 1. Optional spaces between words
-                # 2. Repeated final vowels for climax detection (e.g., diooo, porcooo)
-                # Split into words and create flexible pattern
+                # Create pattern that handles word boundaries
                 words = phrase.split()
                 if len(words) >= 2:
                     # Multi-word: allow optional spaces
-                    # e.g., "porco dio" -> r'\bporco\s*dio+\b'
                     pattern_str = r'\b' + r'\s*'.join(re.escape(w) for w in words) + r'\b'
                 elif len(words) == 1:
-                    # Single word (like "diocane", "diomerda")
-                    pattern_str = r'\b' + re.escape(phrase) + r'\b'
+                    # Single word - match with optional suffixes for English
+                    if self.language == 'en':
+                        pattern_str = r'\b' + re.escape(phrase) + r'\w*\b'
+                    else:
+                        pattern_str = r'\b' + re.escape(phrase) + r'\b'
                 else:
                     continue
                 
-                # Normalize pattern name (canonical form with space)
+                # Normalize pattern name
                 canonical = ' '.join(words) if len(words) > 1 else phrase
                 
                 try:
@@ -383,36 +333,38 @@ class StatisticsService:
     
     def _compute_bestemmiometro(self, messages: List[Message]) -> Dict[str, Any]:
         """
-        Compute Bestemmiometro statistics - counts of Italian blasphemies.
+        Compute profanity statistics.
+        Italian: Bestemmiometro (blasphemies from bestemmie.txt)
+        English: Swear-O-Meter (profanity from swearwords.txt)
         
         Features:
-        - Loads patterns from bestemmie.txt file
+        - Loads patterns from language-specific file
         - Normalizes text to lowercase
-        - Detects climax patterns (repeated vowels like "diooooo")
-        - Tracks consecutive bestemmie in messages
-        - Provides per-capita stats (bestemmie per 100 messages)
+        - Detects climax patterns (repeated vowels like "diooooo") for Italian
+        - Tracks consecutive profanities in messages
+        - Provides per-capita stats (profanities per 100 messages)
         
         Returns counts by phrase, by author, total, patterns, and per-capita stats.
         """
-        # Load patterns from file
-        BLASPHEMY_PATTERNS = self._load_bestemmie_patterns()
+        # Load patterns from file based on language
+        PROFANITY_PATTERNS = self._load_profanity_patterns()
         
         # Initialize counters
-        by_phrase = {phrase: 0 for phrase in BLASPHEMY_PATTERNS}
-        by_author = defaultdict(lambda: {phrase: 0 for phrase in BLASPHEMY_PATTERNS})
+        by_phrase = {phrase: 0 for phrase in PROFANITY_PATTERNS}
+        by_author = defaultdict(lambda: {phrase: 0 for phrase in PROFANITY_PATTERNS})
         by_author_total = defaultdict(int)
         by_author_message_count = defaultdict(int)
         total = 0
         
         # Track consecutive patterns and climax
-        consecutive_bestemmie = []  # List of (author, count, timestamp) for consecutive msgs
+        consecutive_profanities = []  # List of (author, count, timestamp) for consecutive msgs
         climax_instances = []  # List of climax detections
         current_streak = {'author': None, 'count': 0, 'start_timestamp': None}
         
-        # Track bestemmie over time for patterns
-        bestemmie_timeline = defaultdict(int)
+        # Track profanities over time for patterns
+        profanity_timeline = defaultdict(int)
         
-        prev_msg_had_bestemmia = False
+        prev_msg_had_profanity = False
         prev_author = None
         
         for msg in messages:
@@ -423,44 +375,45 @@ class StatisticsService:
             by_author_message_count[msg.author] += 1
             
             if msg.is_media or not msg.content:
-                prev_msg_had_bestemmia = False
+                prev_msg_had_profanity = False
                 continue
             
             # IMPORTANT: Normalize to lowercase for analysis
             content = msg.content.lower()
-            msg_bestemmia_count = 0
+            msg_profanity_count = 0
             
-            for phrase, pattern in BLASPHEMY_PATTERNS.items():
+            for phrase, pattern in PROFANITY_PATTERNS.items():
                 matches = len(pattern.findall(content))
                 if matches > 0:
                     by_phrase[phrase] += matches
                     by_author[msg.author][phrase] += matches
                     by_author_total[msg.author] += matches
                     total += matches
-                    msg_bestemmia_count += matches
+                    msg_profanity_count += matches
             
-            # Detect climax patterns
-            climax_in_msg = self._detect_climax_patterns(content)
-            for climax in climax_in_msg:
-                climax_instances.append({
-                    'author': msg.author,
-                    'timestamp': msg.timestamp.isoformat() if msg.timestamp else None,
-                    **climax
-                })
+            # Detect climax patterns (mainly for Italian)
+            if self.language == 'it':
+                climax_in_msg = self._detect_climax_patterns(content)
+                for climax in climax_in_msg:
+                    climax_instances.append({
+                        'author': msg.author,
+                        'timestamp': msg.timestamp.isoformat() if msg.timestamp else None,
+                        **climax
+                    })
             
-            # Track consecutive bestemmie (same author, consecutive messages)
-            if msg_bestemmia_count > 0:
+            # Track consecutive profanities (same author, consecutive messages)
+            if msg_profanity_count > 0:
                 # Track timeline
                 time_key = msg.timestamp.replace(minute=0, second=0, microsecond=0)
-                bestemmie_timeline[time_key.isoformat()] += msg_bestemmia_count
+                profanity_timeline[time_key.isoformat()] += msg_profanity_count
                 
-                if prev_msg_had_bestemmia and prev_author == msg.author:
+                if prev_msg_had_profanity and prev_author == msg.author:
                     # Continue streak
                     current_streak['count'] += 1
                 else:
                     # Save previous streak if it was >= 2
                     if current_streak['count'] >= 2:
-                        consecutive_bestemmie.append({
+                        consecutive_profanities.append({
                             'author': current_streak['author'],
                             'count': current_streak['count'],
                             'timestamp': current_streak['start_timestamp']
@@ -471,33 +424,33 @@ class StatisticsService:
                         'count': 1,
                         'start_timestamp': msg.timestamp.isoformat() if msg.timestamp else None
                     }
-                prev_msg_had_bestemmia = True
+                prev_msg_had_profanity = True
                 prev_author = msg.author
             else:
-                # No bestemmia in this message
+                # No profanity in this message
                 if current_streak['count'] >= 2:
-                    consecutive_bestemmie.append({
+                    consecutive_profanities.append({
                         'author': current_streak['author'],
                         'count': current_streak['count'],
                         'timestamp': current_streak['start_timestamp']
                     })
                 current_streak = {'author': None, 'count': 0, 'start_timestamp': None}
-                prev_msg_had_bestemmia = False
+                prev_msg_had_profanity = False
                 prev_author = msg.author
         
         # Don't forget last streak
         if current_streak['count'] >= 2:
-            consecutive_bestemmie.append({
+            consecutive_profanities.append({
                 'author': current_streak['author'],
                 'count': current_streak['count'],
                 'timestamp': current_streak['start_timestamp']
             })
         
-        # Calculate per-capita stats (bestemmie per 100 messages)
+        # Calculate per-capita stats (profanities per 100 messages)
         per_capita = {}
-        for author, bestemmia_count in by_author_total.items():
+        for author, profanity_count in by_author_total.items():
             msg_count = by_author_message_count.get(author, 1)
-            per_capita[author] = round((bestemmia_count / msg_count) * 100, 2) if msg_count > 0 else 0
+            per_capita[author] = round((profanity_count / msg_count) * 100, 2) if msg_count > 0 else 0
         
         # Calculate total per-capita
         total_messages = sum(by_author_message_count.values())
@@ -510,7 +463,7 @@ class StatisticsService:
             reverse=True
         )[:20]  # Top 20
         
-        # Climax statistics
+        # Climax statistics (mainly for Italian)
         climax_by_author = defaultdict(int)
         total_intensity = 0
         for climax in climax_instances:
@@ -526,11 +479,12 @@ class StatisticsService:
             'total': total,
             'per_capita': per_capita,
             'total_per_capita': total_per_capita,
-            'consecutive_streaks': sorted(consecutive_bestemmie, key=lambda x: x['count'], reverse=True)[:10],
+            'consecutive_streaks': sorted(consecutive_profanities, key=lambda x: x['count'], reverse=True)[:10],
             'climax_instances': climax_instances[:50],  # Limit to 50
             'climax_by_author': dict(climax_by_author),
             'avg_climax_intensity': avg_climax_intensity,
-            'timeline': dict(sorted(bestemmie_timeline.items())),
+            'timeline': dict(sorted(profanity_timeline.items())),
+            'language': self.language,  # Include language for frontend
         }
 
     def _compute_hourly_breakdown(self, messages: List[Message]) -> List[TimeSeriesDataPoint]:
@@ -562,7 +516,6 @@ class StatisticsService:
             total_authors=0,
             date_range={'start': None, 'end': None},
             author_stats=[],
-            sentiment_distribution=SentimentDistribution(),
             media_stats=None,
             time_series=[],
             grouped_data={}

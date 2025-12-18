@@ -18,17 +18,6 @@ class AuthorStats(BaseModel):
     media_count: int
 
 
-class SentimentDistribution(BaseModel):
-    """Distribution of sentiment categories."""
-    positive: int = 0
-    negative: int = 0
-    neutral: int = 0
-    joy: int = 0
-    anger: int = 0
-    sadness: int = 0
-    fear: int = 0
-
-
 class MediaStats(BaseModel):
     """Statistics about media messages."""
     total_media: int
@@ -43,7 +32,6 @@ class StatsResponse(BaseModel):
     total_authors: int
     date_range: Dict[str, Optional[datetime]]
     author_stats: List[AuthorStats]
-    sentiment_distribution: SentimentDistribution
     media_stats: Optional[MediaStats] = None
     time_series: List[TimeSeriesDataPoint]
     grouped_data: Dict[str, Any]  # Flexible structure for various groupings

@@ -1,10 +1,10 @@
-# WhatsApp Conversation Analyzer
+# TalkStats - WhatsApp Chat Analyzer
 
 > Ever wondered who sends the most messages in your group chat? Or what time your friends are most active? Maybe you're curious about the overall *vibe* of your conversations? Well, wonder no more!
 
 A full-stack web app that turns your boring WhatsApp chat exports into beautiful, insightful analytics. No login required, no data stored on servers - just pure chat analysis goodness.
 
-**Live Demo: [whatsapp-conv-analyzer.fly.dev](https://whatsapp-conv-analyzer.fly.dev)**
+**Live Demo: [whatsapp-analyzer-446573060004.europe-west1.run.app](https://whatsapp-analyzer-446573060004.europe-west1.run.app)**
 
 ---
 
@@ -23,12 +23,18 @@ Using VADER (Valence Aware Dictionary and sEntiment Reasoner) with custom Italia
 - **Sentiment over time** - track the mood evolution of your chat
 
 ### Bestemmiometro (The Blasphemy Meter)
-A *very serious* feature for Italian chats that tracks... let's say *colorful expressions*:
-- `porco dio` / `dio porco`
-- `porca madonna`  
-- `dio cane`
+A *very serious* feature for **Italian chats only** that tracks... let's say *colorful expressions*. Includes 270+ patterns covering various creative combinations of Italian blasphemies.
 
-Complete with per-author rankings, pie charts, and stacked bar visualizations. Because science.
+**Note:** This feature is specifically designed for Italian language analysis. It will not detect blasphemies in other languages.
+
+Features:
+- Per-author rankings and per-capita stats (bestemmie per 100 messages)
+- Climax detection (repeated vowels like "diooooo" or "madonnaaaa")
+- Consecutive streak tracking
+- Timeline visualization
+- Beautiful pie charts and stacked bar visualizations
+
+Because science.
 
 ### 12 Interactive Visualizations
 1. **Message Timeline** - messages over time
@@ -285,6 +291,7 @@ MIT - Do whatever you want with it.
 - [NLTK](https://www.nltk.org/) for VADER sentiment
 - [Recharts](https://recharts.org/) for beautiful charts
 - [FastAPI](https://fastapi.tiangolo.com/) for making Python APIs fun
+- [Rattlyy/bestemmiometro](https://github.com/Rattlyy/bestemmiometro) for the comprehensive bestemmie.txt wordlist
 - My Italian friends for... inspiring the Bestemmiometro feature
 
 ---

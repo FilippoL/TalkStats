@@ -47,7 +47,6 @@ class WordAnalyzer:
         authors: Optional[List[str]] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        sentiment: Optional[str] = None,
         limit: int = 100,
         min_length: int = 1
     ) -> WordFrequencyResponse:
@@ -58,7 +57,6 @@ class WordAnalyzer:
             authors: Filter by author names
             start_date: Filter messages from this date
             end_date: Filter messages until this date
-            sentiment: Filter by sentiment category
             limit: Maximum number of words to return
             min_length: Minimum word length to include
         """
@@ -73,9 +71,6 @@ class WordAnalyzer:
         
         if end_date:
             filtered = [m for m in filtered if m.timestamp <= end_date]
-        
-        if sentiment:
-            filtered = [m for m in filtered if m.sentiment == sentiment]
         
         # Extract words
         words = []

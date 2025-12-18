@@ -1,0 +1,35 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+.env
+.env.local
+.venv
+venv/
+ENV/
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+
+# fly.io specific (no longer needed)
+fly.toml
+
+# Memory bank and docs
+memory-bank/
+*.pdf
+
+# Test data
+_chat.txt
+WhatsApp*.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts (will be built in container)
+frontend/dist/
+backend/__pycache__/

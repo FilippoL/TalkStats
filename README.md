@@ -1,6 +1,6 @@
 # TalkStats - WhatsApp Chat Analyzer
 
-> Ever wondered who sends the most messages in your group chat? Or what time your friends are most active? Maybe you're curious about the overall *vibe* of your conversations? Well, wonder no more!
+> Ever wondered who sends the most messages in your group chat? Or what time your friends are most active? Maybe you're curious about your group's favorite emojis? Well, wonder no more!
 
 A full-stack web app that turns your boring WhatsApp chat exports into beautiful, insightful analytics. No login required, no data stored on servers - just pure chat analysis goodness.
 
@@ -14,13 +14,12 @@ A full-stack web app that turns your boring WhatsApp chat exports into beautiful
 - **Message counts** per author - finally settle who's the chattiest
 - **Time-based analysis** - are you a morning person or a midnight messenger?
 - **Word frequency** - discover your group's favorite words (stopwords filtered for EN/IT)
-- **Message length stats** - who writes novels vs who sends "ok" 
+- **Message length stats** - who writes novels vs who sends "ok"
 
-### Sentiment Analysis
-Using VADER (Valence Aware Dictionary and sEntiment Reasoner) with custom Italian emotion keywords:
-- **Positive / Negative / Neutral** classification
-- **Emotion detection**: joy, anger, sadness, fear
-- **Sentiment over time** - track the mood evolution of your chat
+### Emoji Statistics
+- **Top emojis** - see the most used emojis in the chat
+- **Per-author emoji breakdown** - who uses the most 😂? Who's the ❤️ spammer?
+- **Total emoji count** - quantify the expressiveness of your conversations
 
 ### Bestemmiometro (The Blasphemy Meter)
 A *very serious* feature for **Italian chats only** that tracks... let's say *colorful expressions*. Includes 270+ patterns covering various creative combinations of Italian blasphemies.
@@ -36,24 +35,22 @@ Features:
 
 Because science.
 
-### 12 Interactive Visualizations
+### 11 Interactive Visualizations
 1. **Message Timeline** - messages over time
 2. **Hourly Timeline** - activity by hour of day
 3. **Author Activity** - per-author comparison
-4. **Sentiment Distribution** - pie chart breakdown
-5. **Sentiment Over Time** - mood trends
-6. **Word Frequency** - top words bar chart
-7. **Activity Heatmap** - day/hour heatmap
-8. **Message Length Distribution** - length statistics
-9. **Message Length Histogram** - distribution curve
-10. **Message Length Comparison** - author comparison
-11. **Media Statistics** - images, videos, audio, stickers
-12. **Bestemmiometro** - the sacred blasphemy charts
+4. **Word Frequency** - top words bar chart
+5. **Activity Heatmap** - day/hour heatmap
+6. **Message Length Distribution** - length statistics
+7. **Message Length Histogram** - distribution curve
+8. **Message Length Comparison** - author comparison
+9. **Media Statistics** - images, videos, audio, stickers
+10. **Emoji Statistics** - top emojis and per-author breakdown
+11. **Bestemmiometro** - the sacred blasphemy charts (Italian only)
 
 ### Filter Everything
 - Filter by **author** (multi-select)
 - Filter by **date range** (with date picker)
-- Filter by **sentiment** type
 - Group by **hour/day/week/month**
 
 ---
@@ -63,7 +60,7 @@ Because science.
 ### Backend
 - **FastAPI 0.104.1** - Modern Python web framework with automatic OpenAPI docs
 - **Python 3.11+** - Because we're not animals
-- **NLTK VADER** - Sentiment analysis that actually works on social media text
+- **emoji** - Comprehensive emoji detection library
 - **pandas & numpy** - Data crunching
 - **python-dateutil** - Date parsing wizardry
 - **Pydantic** - Data validation that doesn't suck
@@ -79,7 +76,7 @@ Because science.
 
 ### Deployment
 - **Docker** - Multi-stage builds for small images
-- **fly.io** - Easy deployment, free tier, European servers (Amsterdam)
+- **Google Cloud Run** - Serverless deployment, European servers
 
 ---
 
@@ -126,20 +123,17 @@ docker build -t whatsapp-analyzer .
 docker run -p 8000:8000 whatsapp-analyzer
 ```
 
-### Deploy to fly.io
+### Deploy to Google Cloud Run
 
 ```bash
-# Install flyctl
-curl -L https://fly.io/install.sh | sh
+# Login to Google Cloud
+gcloud auth login
 
-# Login
-fly auth login
-
-# Deploy (creates app if needed)
-fly deploy
+# Deploy (creates service if needed)
+gcloud run deploy whatsapp-analyzer --source . --region europe-west1
 
 # Open in browser
-fly open
+# URL will be displayed after deployment
 ```
 
 ---
@@ -158,7 +152,7 @@ WhatsAppConvAnalyzer/
 │   │   ├── parsers/
 │   │   │   └── whatsapp.py     # Chat parser (dual format support)
 │   │   ├── services/
-│   │   │   ├── sentiment.py    # VADER + emotion keywords
+│   │   │   ├── emoji_analysis.py # Emoji detection and statistics
 │   │   │   ├── statistics.py   # Stats calculation + Bestemmiometro
 │   │   │   ├── word_analysis.py # Word frequency
 │   │   │   └── insights.py     # AI-like observations
@@ -177,10 +171,10 @@ WhatsAppConvAnalyzer/
 │   │   │   └── index.ts        # TypeScript types
 │   │   └── App.tsx
 │   └── package.json
+├── data/                        # Wordlists (bestemmie, swearwords)
 ├── memory-bank/                 # AI assistant context
-├── .github/                     # Copilot chat modes
 ├── Dockerfile                   # Production build
-└── fly.toml                     # fly.io config
+└── cloudbuild.yaml              # Google Cloud Build config
 ```
 
 ---
@@ -226,6 +220,7 @@ The parser handles multiple WhatsApp export formats:
 | `/api/authors` | GET | Get list of chat participants |
 | `/api/stats` | GET | Get filtered statistics |
 | `/api/words` | GET | Get word frequency analysis |
+| `/api/emojis` | GET | Get emoji statistics |
 | `/api/insights` | GET | Get AI-generated insights |
 | `/api/health` | GET | Health check for deployments |
 
@@ -237,7 +232,6 @@ The parser handles multiple WhatsApp export formats:
 | `authors` | string | Comma-separated author names |
 | `start_date` | ISO date | Filter messages after this date |
 | `end_date` | ISO date | Filter messages before this date |
-| `sentiment` | string | Filter by sentiment type |
 | `time_grouping` | string | `hour`, `day`, `week`, or `month` |
 
 ---
@@ -251,17 +245,17 @@ The WhatsApp parser uses dual regex patterns to handle both dash and bracket for
 - Detects media messages (in both English and Italian)
 - Handles multi-line messages
 
-### 2. Sentiment Analysis
-Each message gets analyzed by VADER with custom Italian emotion keywords:
-- Positive: felice, fantastico, bellissimo, adoro...
-- Negative: triste, terribile, odio, pessimo...
-- Joy, anger, sadness, fear detection
+### 2. Emoji Analysis
+Using the `emoji` library for comprehensive emoji detection:
+- Detects all Unicode emojis including skin tone variants
+- Counts individual emojis (not just sequences)
+- Per-author emoji breakdown
 
 ### 3. Statistics Calculation
 Aggregates data by:
 - Author (message count, avg length, media count)
 - Time series (configurable grouping)
-- Sentiment distribution
+- Emoji usage statistics
 - Bestemmiometro (Italian blasphemies with no-space variants)
 
 ### 4. Caching
@@ -288,7 +282,7 @@ MIT - Do whatever you want with it.
 
 ## Acknowledgments
 
-- [NLTK](https://www.nltk.org/) for VADER sentiment
+- [emoji](https://github.com/carpedm20/emoji) for comprehensive emoji detection
 - [Recharts](https://recharts.org/) for beautiful charts
 - [FastAPI](https://fastapi.tiangolo.com/) for making Python APIs fun
 - [Rattlyy/bestemmiometro](https://github.com/Rattlyy/bestemmiometro) for the comprehensive bestemmie.txt wordlist

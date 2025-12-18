@@ -38,6 +38,9 @@ function App() {
   };
 
   const handleReset = () => {
+    // Clear session storage to ensure fresh state
+    sessionStorage.removeItem('chatCacheKey');
+    sessionStorage.removeItem('chatLanguage');
     setFileUploaded(false);
   };
 

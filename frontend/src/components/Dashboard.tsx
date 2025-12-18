@@ -30,6 +30,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
   const [emojiStats, setEmojiStats] = useState<EmojiStatsResponse | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
   
   const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
   const [timeGroup, setTimeGroup] = useState<string>('day');
@@ -92,15 +93,15 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       setEmojiStats(emojiData);
     } catch (err: any) {
       console.error('Failed to load data:', err);
-      // Check if this is a session expired error (cache lost due to server restart)
+      // Check if this is a session expired error (HTTP 400 with specific message)
+      // Only trigger redirect if it's definitely a "no data" error, not a transient network issue
       const errorMessage = err?.message || '';
-      if (errorMessage.includes('No data available') || errorMessage.includes('upload a file')) {
-        // Clear session storage and redirect to upload
+      const isNoDataError = errorMessage.includes('No data available') && errorMessage.includes('upload a file');
+      if (isNoDataError) {
+        // Clear session storage and show session expired state
         sessionStorage.removeItem('chatCacheKey');
         sessionStorage.removeItem('chatLanguage');
-        if (onSessionExpired) {
-          onSessionExpired();
-        }
+        setSessionExpired(true);
       }
     } finally {
       setIsRefreshing(false);
@@ -145,6 +146,42 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         <div style={{ color: '#999', fontSize: '12px' }}>
           {Math.round(loadingProgress)}%
         </div>
+      </div>
+    );
+  }
+
+  // Show session expired message with button to upload new file
+  if (sessionExpired) {
+    return (
+      <div style={{ 
+        padding: '60px 20px', 
+        textAlign: 'center',
+        maxWidth: '500px',
+        margin: '0 auto'
+      }}>
+        <div style={{ fontSize: '48px', marginBottom: '20px' }}>⏰</div>
+        <h2 style={{ margin: '0 0 12px 0', color: '#333' }}>
+          {lang === 'it' ? 'Sessione Scaduta' : 'Session Expired'}
+        </h2>
+        <p style={{ margin: '0 0 24px 0', color: '#666', fontSize: '14px' }}>
+          {lang === 'it' 
+            ? 'I dati della chat non sono più disponibili. Per favore carica nuovamente il file.'
+            : 'Your chat data is no longer available. Please upload your file again.'}
+        </p>
+        <button
+          onClick={() => onSessionExpired?.()}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '16px',
+          }}
+        >
+          {lang === 'it' ? 'Carica Nuovo File' : 'Upload New File'}
+        </button>
       </div>
     );
   }

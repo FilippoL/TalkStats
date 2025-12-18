@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useStats, getLanguage } from '../hooks/useStats';
 import { StatsResponse, WordFrequencyResponse, InsightResponse, EmojiStatsResponse } from '../types';
 import { getTranslations, t, Language } from '../i18n/translations';
@@ -17,7 +17,11 @@ import { MediaStatistics } from './charts/MediaStatistics';
 import { Bestemmiometro } from './charts/Bestemmiometro';
 import { EmojiStatistics } from './charts/EmojiStatistics';
 
-export function Dashboard() {
+interface DashboardProps {
+  onSessionExpired?: () => void;
+}
+
+export function Dashboard({ onSessionExpired }: DashboardProps) {
   const { getStats, getWordFrequency, getInsights, getEmojiStats, loading, error } = useStats();
   
   const [stats, setStats] = useState<StatsResponse | null>(null);
@@ -25,6 +29,7 @@ export function Dashboard() {
   const [insights, setInsights] = useState<InsightResponse | null>(null);
   const [emojiStats, setEmojiStats] = useState<EmojiStatsResponse | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
   const [timeGroup, setTimeGroup] = useState<string>('day');
@@ -55,7 +60,8 @@ export function Dashboard() {
     loadData();
   }, [selectedAuthors, timeGroup, startDate, endDate]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    setIsRefreshing(true);
     try {
       const [statsData, wordFreqData, insightsData, emojiData] = await Promise.all([
         getStats({
@@ -84,10 +90,22 @@ export function Dashboard() {
       setWordFreq(wordFreqData);
       setInsights(insightsData);
       setEmojiStats(emojiData);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load data:', err);
+      // Check if this is a session expired error (cache lost due to server restart)
+      const errorMessage = err?.message || '';
+      if (errorMessage.includes('No data available') || errorMessage.includes('upload a file')) {
+        // Clear session storage and redirect to upload
+        sessionStorage.removeItem('chatCacheKey');
+        sessionStorage.removeItem('chatLanguage');
+        if (onSessionExpired) {
+          onSessionExpired();
+        }
+      }
+    } finally {
+      setIsRefreshing(false);
     }
-  };
+  }, [selectedAuthors, timeGroup, startDate, endDate, getStats, getWordFrequency, getInsights, getEmojiStats, onSessionExpired]);
 
   if (loading && !stats) {
     return (
@@ -148,7 +166,33 @@ export function Dashboard() {
         borderRadius: '8px', 
         marginBottom: '30px' 
       }}>
-        <h2 style={{ marginBottom: '20px', fontSize: '20px' }}>{tr.filters}</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h2 style={{ margin: 0, fontSize: '20px' }}>{tr.filters}</h2>
+          <button
+            onClick={() => loadData()}
+            disabled={isRefreshing}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: isRefreshing ? '#ccc' : '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: isRefreshing ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <span style={{ 
+              display: 'inline-block',
+              animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
+            }}>
+              🔄
+            </span>
+            {isRefreshing ? (lang === 'it' ? 'Aggiornamento...' : 'Refreshing...') : (lang === 'it' ? 'Aggiorna' : 'Refresh')}
+          </button>
+        </div>
         <AuthorSelector 
           selectedAuthors={selectedAuthors}
           onSelectionChange={setSelectedAuthors}

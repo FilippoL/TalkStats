@@ -109,7 +109,7 @@ function App() {
             <FileUpload onUploadSuccess={handleUploadSuccess} />
           </div>
         ) : (
-          <Dashboard key={dashboardKey} />
+          <Dashboard key={dashboardKey} onSessionExpired={handleReset} />
         )}
       </div>
 

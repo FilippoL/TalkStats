@@ -14,7 +14,9 @@
     "react-dom": "^18.2.0",
     "recharts": "^2.10.3",
     "axios": "^1.6.2",
-    "date-fns": "^2.30.0"
+    "date-fns": "^2.30.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.37",

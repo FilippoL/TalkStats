@@ -1,17 +1,36 @@
 import { useState, useEffect } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { Dashboard } from './components/Dashboard';
+import { SharedDashboard } from './components/SharedDashboard';
 import { getLanguage } from './hooks/useStats';
 import { getTranslations, Language } from './i18n/translations';
+
+// Simple router helper
+function getShareIdFromPath(): string | null {
+  const path = window.location.pathname;
+  const match = path.match(/^\/share\/([a-f0-9-]+)$/i);
+  return match ? match[1] : null;
+}
 
 function App() {
   const [fileUploaded, setFileUploaded] = useState(false);
   // Use a key to force Dashboard remount when new file is uploaded
   const [dashboardKey, setDashboardKey] = useState(0);
+  // Check if viewing a shared report
+  const [shareId, setShareId] = useState<string | null>(getShareIdFromPath());
   
   // Make language reactive - default to 'en' if not set
   const [lang, setLang] = useState<Language>((getLanguage() || 'en') as Language);
   const tr = getTranslations(lang);
+  
+  // Handle browser navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      setShareId(getShareIdFromPath());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   
   // Update language when it changes in sessionStorage
   useEffect(() => {
@@ -42,7 +61,88 @@ function App() {
     sessionStorage.removeItem('chatCacheKey');
     sessionStorage.removeItem('chatLanguage');
     setFileUploaded(false);
+    // Clear share ID and go home
+    if (shareId) {
+      window.history.pushState({}, '', '/');
+      setShareId(null);
+    }
   };
+  
+  // If viewing a shared report
+  if (shareId) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ 
+          backgroundColor: '#fff', 
+          borderBottom: '1px solid #e0e0e0',
+          marginBottom: '20px'
+        }}>
+          <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px', gap: '10px', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: '50px' }}></div>
+            <div style={{ display: 'flex', justifyContent: 'center', flex: '1 1 auto' }}>
+              <a href="/" onClick={(e) => { e.preventDefault(); handleReset(); }}>
+                <img src="/logo.png" alt="TalkStats" style={{ height: '50px', width: 'auto', padding: '4px 0' }} />
+              </a>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', minWidth: 'fit-content' }}>
+              <button
+                onClick={handleReset}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                {lang === 'it' ? 'Analizza la Tua Chat' : 'Analyze Your Chat'}
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px', flex: 1 }}>
+          <SharedDashboard shareId={shareId} />
+        </div>
+        
+        {/* Footer */}
+        <footer style={{
+          backgroundColor: '#fff',
+          borderTop: '1px solid #e0e0e0',
+          padding: '20px',
+          marginTop: '40px',
+          textAlign: 'center',
+        }}>
+          <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+            <span style={{ color: '#666', fontSize: '14px' }}>
+              {tr.madeBy} <strong>Filippo M. Libardi</strong>
+            </span>
+            <span style={{ color: '#ccc' }}>|</span>
+            <a
+              href="https://github.com/FilippoL/WhatsAppConvAnalyzer"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: '#007bff',
+                textDecoration: 'none',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+              </svg>
+              {tr.contribute}
+            </a>
+          </div>
+        </footer>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
@@ -51,9 +151,9 @@ function App() {
         borderBottom: '1px solid #e0e0e0',
         marginBottom: '20px'
       }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px', gap: '10px', flexWrap: 'wrap' }}>
           {/* Left: Buy me a coffee (only on dashboard) */}
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-start', minWidth: 'fit-content' }}>
             {fileUploaded && (
               <a
                 href="https://buymeacoffee.com/filippol"
@@ -80,12 +180,12 @@ function App() {
           </div>
           
           {/* Center: Logo */}
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-            <img src="/logo.png" alt="TalkStats" style={{ height: '60px', width: 'auto', padding: '8px 0' }} />
+          <div style={{ display: 'flex', justifyContent: 'center', flex: '1 1 auto' }}>
+            <img src="/logo.png" alt="TalkStats" style={{ height: '50px', width: 'auto', padding: '4px 0' }} />
           </div>
           
           {/* Right: Upload new file button */}
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', minWidth: 'fit-content' }}>
             {fileUploaded && (
               <button
                 onClick={handleReset}

@@ -53,6 +53,11 @@ Because science.
 - Filter by **date range** (with date picker)
 - Group by **hour/day/week/month**
 
+### Export & Share Features
+- **PDF Export** - Export the full report or select specific sections (Bestemmiometro only option included!)
+- **Share Links** - Generate shareable links that expire after 1 hour
+- **Session Isolation** - Proper session management ensures your data stays yours
+
 ---
 
 ## Tech Stack
@@ -116,6 +121,17 @@ The Vite dev server proxies `/api/*` requests to the backend automatically.
 
 ## Docker Deployment
 
+### Development with Docker Compose
+
+```bash
+# Start all services (Redis, Backend, Frontend)
+docker-compose -f docker-compose.dev.yml up
+
+# Backend at http://localhost:8000
+# Frontend at http://localhost:3000
+# Redis at localhost:6379
+```
+
 ### Local Docker Build
 
 ```bash
@@ -123,18 +139,54 @@ docker build -t whatsapp-analyzer .
 docker run -p 8000:8000 whatsapp-analyzer
 ```
 
-### Deploy to Google Cloud Run
+### Deploy to Google Cloud Run with Upstash Redis (Recommended - FREE)
+
+For production session storage, we recommend **Upstash Redis** - a serverless Redis with a generous free tier (saves ~$42/month vs Google Memorystore).
+
+#### 1. Create Free Upstash Account
+
+1. Go to [console.upstash.com](https://console.upstash.com)
+2. Sign up (GitHub login works)
+3. Click **Create Database**
+4. Name: `whatsapp-sessions`
+5. Region: **EU West** (or closest to your Cloud Run region)
+6. Type: **Regional** (free tier)
+
+#### 2. Get Your Credentials
+
+From the Upstash dashboard, copy:
+- **REST URL**: `https://xxxx.upstash.io`
+- **REST Token**: `AXxxxx...`
+
+#### 3. Update cloudbuild.yaml
+
+Edit `cloudbuild.yaml` and update with your Upstash credentials:
+
+```yaml
+substitutions:
+  _UPSTASH_URL: 'https://your-instance.upstash.io'  # Your Upstash REST URL
+  _UPSTASH_TOKEN: 'your-token-here'                  # Your Upstash REST Token
+```
+
+#### 4. Deploy
 
 ```bash
-# Login to Google Cloud
-gcloud auth login
-
-# Deploy (creates service if needed)
-gcloud run deploy whatsapp-analyzer --source . --region europe-west1
-
-# Open in browser
-# URL will be displayed after deployment
+gcloud builds submit --config cloudbuild.yaml
 ```
+
+#### Alternative: Google Memorystore (More Expensive)
+
+If you prefer Google-native services, you can use Memorystore (~$42/month):
+
+```bash
+# Create Redis instance
+gcloud redis instances create whatsapp-redis --size=1 --region=europe-west1 --redis-version=redis_7_0 --tier=basic
+
+# Create VPC connector
+gcloud compute networks vpc-access connectors create redis-connector --region=europe-west1 --range=10.8.0.0/28
+```
+
+Then update `cloudbuild.yaml` to use `REDIS_HOST` instead of Upstash variables.
 
 ---
 
@@ -152,6 +204,7 @@ WhatsAppConvAnalyzer/
 │   │   ├── parsers/
 │   │   │   └── whatsapp.py     # Chat parser (dual format support)
 │   │   ├── services/
+│   │   │   ├── redis_client.py # Redis session storage
 │   │   │   ├── emoji_analysis.py # Emoji detection and statistics
 │   │   │   ├── statistics.py   # Stats calculation + Bestemmiometro
 │   │   │   ├── word_analysis.py # Word frequency
@@ -164,9 +217,14 @@ WhatsAppConvAnalyzer/
 │   │   │   ├── charts/         # 12 chart components
 │   │   │   ├── Dashboard.tsx   # Main dashboard
 │   │   │   ├── FileUpload.tsx  # Drag & drop upload
+│   │   │   ├── ExportModal.tsx # PDF export options
+│   │   │   ├── ShareModal.tsx  # Share link generation
+│   │   │   ├── SharedDashboard.tsx # Read-only shared view
 │   │   │   └── ...             # Filters & selectors
 │   │   ├── hooks/
 │   │   │   └── useStats.ts     # API hook
+│   │   ├── utils/
+│   │   │   └── pdfExport.ts    # PDF export utility
 │   │   ├── types/
 │   │   │   └── index.ts        # TypeScript types
 │   │   └── App.tsx
@@ -174,6 +232,7 @@ WhatsAppConvAnalyzer/
 ├── data/                        # Wordlists (bestemmie, swearwords)
 ├── memory-bank/                 # AI assistant context
 ├── Dockerfile                   # Production build
+├── docker-compose.dev.yml       # Dev environment with Redis
 └── cloudbuild.yaml              # Google Cloud Build config
 ```
 
@@ -185,14 +244,16 @@ WhatsAppConvAnalyzer/
 1. Open WhatsApp → Go to the chat
 2. Tap **⋮** (three dots) → **More** → **Export chat**
 3. Choose **Without Media**
-4. Save/share the `.txt` file
+4. Save/share the `.txt` or `.zip` file
 
 ### On iPhone
 1. Open WhatsApp → Go to the chat
 2. Tap the contact/group name at the top
 3. Scroll down → **Export Chat**
 4. Choose **Without Media**
-5. Save the `.txt` file
+5. Save the `.txt` or `.zip` file
+
+> **Tip:** You can upload the `.zip` file directly - no need to unzip it first!
 
 ### Supported Formats
 The parser handles multiple WhatsApp export formats:
@@ -216,12 +277,14 @@ The parser handles multiple WhatsApp export formats:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/upload` | POST | Upload WhatsApp chat file |
+| `/api/upload` | POST | Upload WhatsApp chat file (.txt or .zip) |
 | `/api/authors` | GET | Get list of chat participants |
 | `/api/stats` | GET | Get filtered statistics |
 | `/api/words` | GET | Get word frequency analysis |
 | `/api/emojis` | GET | Get emoji statistics |
 | `/api/insights` | GET | Get AI-generated insights |
+| `/api/share` | POST | Generate a shareable link (expires in 1 hour) |
+| `/api/share/{id}` | GET | Get shared report data |
 | `/api/health` | GET | Health check for deployments |
 
 ### Query Parameters for `/api/stats`
@@ -258,8 +321,8 @@ Aggregates data by:
 - Emoji usage statistics
 - Bestemmiometro (Italian blasphemies with no-space variants)
 
-### 4. Caching
-In-memory caching per upload session. Data is **not persisted** - when you close the tab or the server restarts, everything is gone. Privacy by design!
+### 4. Session Storage
+Sessions are stored in Redis (Upstash or Memorystore) with automatic 1-hour expiration. Each user gets a unique session ID - your data is isolated and automatically deleted after the TTL. Privacy by design!
 
 ---
 
@@ -267,7 +330,8 @@ In-memory caching per upload session. Data is **not persisted** - when you close
 
 PRs welcome! Some ideas:
 - [ ] More WhatsApp export format support
-- [ ] Export to PDF/CSV
+- [x] ~~Export to PDF~~ ✅ Done!
+- [x] ~~Share links~~ ✅ Done!
 - [ ] Dark mode
 - [ ] More languages for stopwords/sentiment
 - [ ] Unit tests (yeah, I know...)
@@ -285,6 +349,7 @@ MIT - Do whatever you want with it.
 - [emoji](https://github.com/carpedm20/emoji) for comprehensive emoji detection
 - [Recharts](https://recharts.org/) for beautiful charts
 - [FastAPI](https://fastapi.tiangolo.com/) for making Python APIs fun
+- [Upstash](https://upstash.com/) for serverless Redis with amazing free tier
 - [Rattlyy/bestemmiometro](https://github.com/Rattlyy/bestemmiometro) for the comprehensive bestemmie.txt wordlist
 - My Italian friends for... inspiring the Bestemmiometro feature
 

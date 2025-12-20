@@ -36,4 +36,37 @@ input, select {
   }
 }
 
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  /* Ensure proper padding on mobile */
+  body {
+    font-size: 14px;
+  }
+
+  /* Make charts scroll horizontally on mobile */
+  .recharts-wrapper {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  /* Grid layouts stack on mobile */
+  .stats-grid,
+  .charts-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Smaller padding on very small screens */
+  body {
+    font-size: 13px;
+  }
+  
+  /* Modal adjustments for small screens */
+  .modal-content {
+    width: 95% !important;
+    padding: 15px !important;
+  }
+}
+
 

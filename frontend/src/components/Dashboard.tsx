@@ -16,10 +16,15 @@ import { MessageLengthComparison } from './charts/MessageLengthComparison';
 import { MediaStatistics } from './charts/MediaStatistics';
 import { Bestemmiometro } from './charts/Bestemmiometro';
 import { EmojiStatistics } from './charts/EmojiStatistics';
+import { ExportModal } from './ExportModal';
+import { ShareModal } from './ShareModal';
 
 interface DashboardProps {
   onSessionExpired?: () => void;
 }
+
+// Helper to get cache key from sessionStorage
+const getCacheKey = (): string | null => sessionStorage.getItem('chatCacheKey');
 
 export function Dashboard({ onSessionExpired }: DashboardProps) {
   const { getStats, getWordFrequency, getInsights, getEmojiStats, loading, error } = useStats();
@@ -36,6 +41,10 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
   const [timeGroup, setTimeGroup] = useState<string>('day');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  
+  // Export and Share modal states
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Get language from session storage
   const lang = (getLanguage() || 'en') as Language;
@@ -117,7 +126,6 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         margin: '0 auto'
       }}>
         <div style={{ marginBottom: '20px' }}>
-          <div style={{ fontSize: '48px', marginBottom: '10px' }}>📊</div>
           <h2 style={{ margin: '0 0 8px 0', color: '#333' }}>{tr.loadingDashboard}</h2>
           <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
             {lang === 'it' ? 'Analizzando i tuoi messaggi...' : 'Analyzing your messages...'}
@@ -159,7 +167,6 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         maxWidth: '500px',
         margin: '0 auto'
       }}>
-        <div style={{ fontSize: '48px', marginBottom: '20px' }}>⏰</div>
         <h2 style={{ margin: '0 0 12px 0', color: '#333' }}>
           {lang === 'it' ? 'Sessione Scaduta' : 'Session Expired'}
         </h2>
@@ -196,6 +203,22 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
 
   return (
     <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Export and Share Modals */}
+      <ExportModal 
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        lang={lang}
+        hasBestemmiometro={!!stats.grouped_data?.bestemmiometro && stats.grouped_data.bestemmiometro.total > 0}
+      />
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        lang={lang}
+        cacheKey={getCacheKey()}
+      />
+      
+      {/* Main Dashboard Content (for PDF export) */}
+      <div id="dashboard-content">
       {/* Filters */}
       <div style={{ 
         backgroundColor: '#f5f5f5', 
@@ -203,32 +226,70 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         borderRadius: '8px', 
         marginBottom: '30px' 
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0, fontSize: '20px' }}>{tr.filters}</h2>
-          <button
-            onClick={() => loadData()}
-            disabled={isRefreshing}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: isRefreshing ? '#ccc' : '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: isRefreshing ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          gap: '15px',
+          marginBottom: '20px'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '10px'
+          }}>
+            <h2 style={{ margin: 0, fontSize: '20px' }}>{tr.filters}</h2>
+            <div style={{
               display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <span style={{ 
-              display: 'inline-block',
-              animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
+              gap: '8px',
+              flexWrap: 'wrap',
             }}>
-              🔄
-            </span>
-            {isRefreshing ? (lang === 'it' ? 'Aggiornamento...' : 'Refreshing...') : (lang === 'it' ? 'Aggiorna' : 'Refresh')}
-          </button>
+              <button
+                onClick={() => loadData()}
+                disabled={isRefreshing}
+                style={{
+                  padding: '8px 14px',
+                  backgroundColor: isRefreshing ? '#ccc' : '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: isRefreshing ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                {isRefreshing ? (lang === 'it' ? 'Aggiornamento...' : 'Refreshing...') : (lang === 'it' ? 'Aggiorna' : 'Refresh')}
+              </button>
+              <button
+                onClick={() => setShowShareModal(true)}
+                style={{
+                  padding: '8px 14px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                {tr.share}
+              </button>
+              <button
+                onClick={() => setShowExportModal(true)}
+                style={{
+                  padding: '8px 14px',
+                  backgroundColor: '#6366f1',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                {tr.exportPDF}
+              </button>
+            </div>
+          </div>
         </div>
         <AuthorSelector 
           selectedAuthors={selectedAuthors}
@@ -247,7 +308,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       </div>
 
       {/* Stats Cards */}
-      <div style={{ 
+      <div className="stats-grid" style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
         gap: '20px',
@@ -308,19 +369,27 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       <div style={{ display: 'grid', gap: '30px' }}>
         {/* Show hourly timeline when day grouping is selected (in addition to the regular timeline) */}
         {timeGroup === 'day' && stats.grouped_data?.hourly && stats.grouped_data.hourly.length > 0 && (
-          <HourlyTimeline data={stats.grouped_data.hourly} lang={lang} />
+          <div id="chart-hourly-timeline">
+            <HourlyTimeline data={stats.grouped_data.hourly} lang={lang} />
+          </div>
         )}
         
         {/* Regular timeline showing message count over time (from start date to end date) */}
         {stats.time_series.length > 0 && (
-          <MessageTimeline data={stats.time_series} timeGroup={timeGroup} lang={lang} />
+          <div id="chart-message-timeline">
+            <MessageTimeline data={stats.time_series} timeGroup={timeGroup} lang={lang} />
+          </div>
         )}
         
         {stats.author_stats.length > 0 && (
           <>
-            <AuthorActivity data={stats.author_stats} lang={lang} />
-            <MessageLengthDistribution data={stats.author_stats} lang={lang} />
-            <MessageLengthComparison data={stats.author_stats} lang={lang} />
+            <div id="chart-author-activity">
+              <AuthorActivity data={stats.author_stats} lang={lang} />
+            </div>
+            <div id="chart-message-length">
+              <MessageLengthDistribution data={stats.author_stats} lang={lang} />
+              <MessageLengthComparison data={stats.author_stats} lang={lang} />
+            </div>
           </>
         )}
         
@@ -329,25 +398,36 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         )}
         
         {stats.media_stats && (
-          <MediaStatistics data={stats.media_stats} timeGroup={timeGroup} totalMessages={stats.total_messages} lang={lang} />
+          <div id="chart-media-stats">
+            <MediaStatistics data={stats.media_stats} timeGroup={timeGroup} totalMessages={stats.total_messages} lang={lang} />
+          </div>
         )}
         
         {stats.time_series.length > 0 && timeGroup === 'hour' && (
-          <ActivityHeatmap data={stats.time_series} lang={lang} />
+          <div id="chart-activity-heatmap">
+            <ActivityHeatmap data={stats.time_series} lang={lang} />
+          </div>
         )}
         
         {wordFreq && wordFreq.words.length > 0 && (
-          <WordFrequency data={wordFreq.words} limit={30} lang={lang} />
+          <div id="chart-word-frequency">
+            <WordFrequency data={wordFreq.words} limit={30} lang={lang} />
+          </div>
         )}
         
         {emojiStats && emojiStats.total_emojis > 0 && (
-          <EmojiStatistics data={emojiStats} lang={lang} />
+          <div id="chart-emoji-stats">
+            <EmojiStatistics data={emojiStats} lang={lang} />
+          </div>
         )}
         
         {stats.grouped_data?.bestemmiometro && (
-          <Bestemmiometro data={stats.grouped_data.bestemmiometro} />
+          <div id="chart-bestemmiometro">
+            <Bestemmiometro data={stats.grouped_data.bestemmiometro} />
+          </div>
         )}
       </div>
+      </div>{/* End dashboard-content */}
     </div>
   );
 }

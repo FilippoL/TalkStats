@@ -76,7 +76,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".txt"
+          accept=".txt,.zip"
           onChange={handleChange}
           style={{ display: 'none' }}
         />
@@ -126,7 +126,7 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
       }}>
         <h3 style={{ marginBottom: '20px', textAlign: 'center' }}>{tr.howToExport}</h3>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+        <div className="instructions-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '30px' }}>
           {/* Android Instructions */}
           <div>
             <h4 style={{ color: '#25D366', marginBottom: '15px' }}>{tr.android}</h4>
@@ -164,10 +164,10 @@ export function FileUpload({ onUploadSuccess }: FileUploadProps) {
       </div>
 
       {/* Support and Feature Suggestion Sections - Side by Side */}
-      <div style={{
+      <div className="support-grid" style={{
         marginTop: '30px',
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
         gap: '20px',
       }}>
         {/* Support Section */}

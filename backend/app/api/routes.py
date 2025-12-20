@@ -1,4 +1,7 @@
-from datetime import datetime
+import uuid
+import zipfile
+import io
+from datetime import datetime, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, UploadFile, File, Query, HTTPException
 from fastapi.responses import JSONResponse
@@ -8,15 +11,45 @@ from ..services.statistics import StatisticsService
 from ..services.word_analysis import WordAnalyzer
 from ..services.insights import InsightsGenerator
 from ..services.emoji_analysis import EmojiAnalyzer
+from ..services.redis_client import redis_client
 from ..models.stats import StatsResponse, WordFrequencyResponse, InsightResponse
 
 
 router = APIRouter()
 
-# In-memory storage for parsed messages (session-based)
-# In production, use proper session management or database
-_parsed_messages_cache: dict = {}
-_language_cache: dict = {}  # Store detected/selected language
+# Session TTL in seconds (1 hour)
+SESSION_TTL = 3600
+# Share link TTL in seconds (1 hour)
+SHARE_TTL = 3600
+
+
+def _generate_session_id() -> str:
+    """Generate a unique session ID."""
+    return str(uuid.uuid4())
+
+
+def _extract_txt_from_zip(zip_content: bytes) -> str:
+    """
+    Extract the WhatsApp chat .txt file from a zip archive.
+    WhatsApp exports typically name the file '_chat.txt' or similar.
+    """
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_content), 'r') as zip_ref:
+            # Find .txt files in the archive
+            txt_files = [f for f in zip_ref.namelist() if f.lower().endswith('.txt')]
+            
+            if not txt_files:
+                raise ValueError("No .txt file found in the zip archive")
+            
+            # Prefer files with 'chat' in the name (WhatsApp naming convention)
+            chat_files = [f for f in txt_files if 'chat' in f.lower()]
+            target_file = chat_files[0] if chat_files else txt_files[0]
+            
+            # Extract and decode the file content
+            with zip_ref.open(target_file) as txt_file:
+                return txt_file.read().decode('utf-8', errors='ignore')
+    except zipfile.BadZipFile:
+        raise ValueError("Invalid zip file")
 
 
 def _detect_language(text: str) -> str:
@@ -48,29 +81,40 @@ async def upload_file(
     file: UploadFile = File(...),
     language: Optional[str] = Query(None, description="Language: 'it' or 'en'. Auto-detect if not provided.")
 ):
-    """Upload and parse WhatsApp chat export file."""
-    global _parsed_messages_cache, _language_cache
-    
+    """Upload and parse WhatsApp chat export file (.txt or .zip)."""
     try:
-        # Clear all previous cache entries to ensure fresh analysis
-        _parsed_messages_cache.clear()
-        _language_cache.clear()
-        
         # Read file content
         content = await file.read()
-        text_content = content.decode('utf-8', errors='ignore')
+        
+        # Check if it's a zip file and extract the txt
+        filename = file.filename.lower() if file.filename else ""
+        if filename.endswith('.zip') or content[:4] == b'PK\x03\x04':  # ZIP magic bytes
+            try:
+                text_content = _extract_txt_from_zip(content)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        else:
+            text_content = content.decode('utf-8', errors='ignore')
         
         # Detect or use provided language
         detected_lang = language if language in ['it', 'en'] else _detect_language(text_content)
-        _language_cache['current'] = detected_lang
         
         # Parse messages
         parser = WhatsAppParser()
         messages = parser.parse(text_content)
         
-        # Store in cache with a fixed key (single-user mode)
-        cache_key = "current"
-        _parsed_messages_cache[cache_key] = messages
+        # Generate unique session ID
+        session_id = _generate_session_id()
+        
+        # Store messages in Redis with session ID
+        session_data = {
+            'messages': messages,
+            'language': detected_lang,
+            'created_at': datetime.utcnow().isoformat(),
+        }
+        
+        if not redis_client.set(f"session:{session_id}", session_data, SESSION_TTL):
+            raise HTTPException(status_code=500, detail="Failed to store session data")
         
         # Get authors
         authors = list(set(m.author for m in messages if not m.is_system))
@@ -79,7 +123,7 @@ async def upload_file(
             "status": "success",
             "message_count": len(messages),
             "authors": authors,
-            "cache_key": cache_key,
+            "cache_key": session_id,
             "language": detected_lang
         })
     
@@ -87,10 +131,35 @@ async def upload_file(
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
 
+def _get_session_data(session_id: Optional[str]) -> dict:
+    """Get session data from Redis by session ID."""
+    if not session_id:
+        raise HTTPException(status_code=400, detail="No data available. Please upload a file first.")
+    
+    session_data = redis_client.get(f"session:{session_id}")
+    
+    if not session_data:
+        raise HTTPException(status_code=400, detail="No data available. Please upload a file first.")
+    
+    return session_data
+
+
+def _get_messages_from_session(session_id: Optional[str]):
+    """Get messages from session."""
+    session_data = _get_session_data(session_id)
+    return session_data['messages']
+
+
+def _get_language_from_session(session_id: Optional[str]) -> str:
+    """Get language from session."""
+    session_data = _get_session_data(session_id)
+    return session_data.get('language', 'en')
+
+
 @router.get("/api/authors")
 async def get_authors(cache_key: Optional[str] = Query(None, alias="key")):
     """Get list of all authors."""
-    messages = _get_messages_from_cache(cache_key)
+    messages = _get_messages_from_session(cache_key)
     authors = list(set(m.author for m in messages if not m.is_system))
     return {"authors": sorted(authors)}
 
@@ -105,7 +174,7 @@ async def get_stats(
     group_by_author: bool = Query(False, description="Include author-specific groupings")
 ):
     """Get aggregated statistics with optional filters."""
-    messages = _get_messages_from_cache(cache_key)
+    messages = _get_messages_from_session(cache_key)
     
     # Build filter parameters
     author_list = [a.strip() for a in authors.split(",")] if authors else None
@@ -125,7 +194,7 @@ async def get_stats(
             raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD")
     
     # Filter and compute stats
-    language = _language_cache.get('current', 'en')
+    language = _get_language_from_session(cache_key)
     stats_service = StatisticsService(messages, language=language)
     filtered_service = stats_service.filter_messages(
         authors=author_list,
@@ -151,7 +220,7 @@ async def get_word_frequency(
     min_length: int = Query(1, ge=1, description="Minimum word length")
 ):
     """Get word frequency analysis with optional filters."""
-    messages = _get_messages_from_cache(cache_key)
+    messages = _get_messages_from_session(cache_key)
     
     # Build filter parameters
     author_list = [a.strip() for a in authors.split(",")] if authors else None
@@ -186,10 +255,8 @@ async def get_word_frequency(
 @router.get("/api/insights", response_model=InsightResponse)
 async def get_insights(cache_key: Optional[str] = Query(None, alias="key")):
     """Generate conversation insights."""
-    messages = _get_messages_from_cache(cache_key)
-    
-    # Get language from cache
-    language = _language_cache.get('current', 'en')
+    messages = _get_messages_from_session(cache_key)
+    language = _get_language_from_session(cache_key)
     
     insights_generator = InsightsGenerator(messages, language=language)
     insights = insights_generator.generate_insights()
@@ -197,22 +264,14 @@ async def get_insights(cache_key: Optional[str] = Query(None, alias="key")):
     return insights
 
 
-def _get_messages_from_cache(cache_key: Optional[str]):
-    """Get messages from cache. Uses fixed 'current' key for single-user mode."""
-    # Always use 'current' key in single-user mode
-    cache_key = "current"
-    
-    if cache_key not in _parsed_messages_cache:
-        raise HTTPException(status_code=400, detail="No data available. Please upload a file first.")
-    
-    return _parsed_messages_cache[cache_key]
-
-
 @router.get("/api/language")
-async def get_language():
+async def get_language(cache_key: Optional[str] = Query(None, alias="key")):
     """Get the detected/selected language for the current session."""
-    language = _language_cache.get('current', 'en')
-    return {"language": language}
+    try:
+        language = _get_language_from_session(cache_key)
+        return {"language": language}
+    except HTTPException:
+        return {"language": "en"}
 
 
 @router.get("/api/emoji-stats")
@@ -223,7 +282,7 @@ async def get_emoji_stats(
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)")
 ):
     """Get emoji usage statistics."""
-    messages = _get_messages_from_cache(cache_key)
+    messages = _get_messages_from_session(cache_key)
     
     # Build filter parameters
     author_list = [a.strip() for a in authors.split(",")] if authors else None
@@ -257,4 +316,78 @@ async def get_emoji_stats(
     
     return emoji_stats
 
+
+# ==================== SHARE FUNCTIONALITY ====================
+
+@router.post("/api/share")
+async def create_share_link(cache_key: Optional[str] = Query(None, alias="key")):
+    """
+    Create a shareable link for the current analysis.
+    The link expires after 1 hour.
+    """
+    if not cache_key:
+        raise HTTPException(status_code=400, detail="No session key provided")
+    
+    # Get session data
+    session_data = redis_client.get(f"session:{cache_key}")
+    if not session_data:
+        raise HTTPException(status_code=400, detail="Session not found or expired")
+    
+    # Get all the stats for the snapshot
+    messages = session_data['messages']
+    language = session_data.get('language', 'en')
+    
+    # Compute stats
+    stats_service = StatisticsService(messages, language=language)
+    stats = stats_service.compute_stats(time_group='day', group_by_author=True)
+    
+    # Get word frequency
+    word_analyzer = WordAnalyzer(messages)
+    word_freq = word_analyzer.get_word_frequency(limit=50, min_length=1)
+    
+    # Get insights
+    insights_generator = InsightsGenerator(messages, language=language)
+    insights = insights_generator.generate_insights()
+    
+    # Get emoji stats
+    emoji_analyzer = EmojiAnalyzer(messages)
+    emoji_stats = emoji_analyzer.analyze()
+    
+    # Create share ID
+    share_id = _generate_session_id()
+    expires_at = datetime.utcnow() + timedelta(seconds=SHARE_TTL)
+    
+    # Store snapshot
+    snapshot = {
+        'stats': stats.dict() if hasattr(stats, 'dict') else stats,
+        'word_freq': word_freq.dict() if hasattr(word_freq, 'dict') else word_freq,
+        'insights': insights.dict() if hasattr(insights, 'dict') else insights,
+        'emoji_stats': emoji_stats,
+        'language': language,
+        'created_at': datetime.utcnow().isoformat(),
+        'expires_at': expires_at.isoformat(),
+    }
+    
+    if not redis_client.set(f"share:{share_id}", snapshot, SHARE_TTL):
+        raise HTTPException(status_code=500, detail="Failed to create share link")
+    
+    return {
+        "share_id": share_id,
+        "expires_at": expires_at.isoformat(),
+        "ttl_seconds": SHARE_TTL,
+    }
+
+
+@router.get("/api/share/{share_id}")
+async def get_shared_data(share_id: str):
+    """
+    Get shared analysis data by share ID.
+    Returns the frozen stats snapshot.
+    """
+    snapshot = redis_client.get(f"share:{share_id}")
+    
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="Share link not found or expired")
+    
+    return snapshot
 

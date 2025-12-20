@@ -7,8 +7,6 @@
 - [x] Multi-line message support in parser
 - [x] System message detection
 - [x] Media message detection (images, videos, audio, stickers, documents)
-- [x] VADER sentiment analysis integration
-- [x] Custom emotion keyword detection (Italian + English)
 - [x] Statistics service with author stats, time series
 - [x] Word frequency analysis with stopword filtering
 - [x] Insights generator with multiple categories
@@ -19,23 +17,27 @@
 - [x] 11 chart visualizations (Recharts)
 - [x] Author selector (multi-select)
 - [x] Time range selector (date picker + grouping)
-- [x] Sentiment filter
 - [x] Docker multi-stage build
-- [x] fly.io deployment configuration
+- [x] Google Cloud Run deployment
 - [x] Health check endpoint
-- [x] SPA routing support
+- [x] Bestemmiometro (Italian blasphemy tracker)
+- [x] Emoji statistics and per-author breakdown
+- [x] **Redis session isolation** (Upstash REST API)
+- [x] **PDF Export** with section selection
+- [x] **Share links** with 1-hour expiration
+- [x] **ZIP file upload support** (auto-extract .txt)
+- [x] **Mobile responsive UI**
+- [x] **Removed emojis from buttons** (cleaner UI)
+- [x] Bilingual support (Italian/English auto-detect)
 
 ## Doing
 
-- [ ] Memory bank documentation (populating with project context)
+- [ ] Production monitoring and cost optimization
 
 ## Next
 
 - [ ] Add unit tests for parser and services
-- [ ] Add API documentation (OpenAPI/Swagger)
-- [ ] Implement persistent storage (optional)
-- [ ] Add rate limiting
-- [ ] Add error logging/monitoring
-- [ ] Support more WhatsApp export formats
-- [ ] Add export functionality (PDF/CSV reports)
 - [ ] Dark mode theme support
+- [ ] More WhatsApp export format support
+- [ ] CSV export option
+- [ ] More languages for stopwords

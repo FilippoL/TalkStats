@@ -31,6 +31,20 @@ steps:
       - '10'
       - '--port'
       - '8000'
+      - '--set-env-vars'
+      - 'UPSTASH_REDIS_REST_URL=${_UPSTASH_URL},UPSTASH_REDIS_REST_TOKEN=${_UPSTASH_TOKEN}'
+
+# ============================================================
+# UPSTASH SETUP (FREE - saves ~$42/month vs Memorystore)
+# ============================================================
+# 1. Go to https://console.upstash.com and create free account
+# 2. Create a Redis database (select EU region)
+# 3. Copy REST URL and REST Token from dashboard
+# 4. Update the values below:
+
+substitutions:
+  _UPSTASH_URL: 'YOUR_UPSTASH_REST_URL'  # Replace with your Upstash REST URL
+  _UPSTASH_TOKEN: 'YOUR_UPSTASH_REST_TOKEN'  # Replace with your Upstash REST Token
 
 images:
   - 'gcr.io/$PROJECT_ID/whatsapp-analyzer'

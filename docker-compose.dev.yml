@@ -1,4 +1,12 @@
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
   backend:
     build:
       context: ./backend
@@ -11,6 +19,10 @@ services:
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
@@ -27,3 +39,6 @@ services:
     depends_on:
       - backend
     command: npm run dev -- --host 0.0.0.0
+
+volumes:
+  redis_data:

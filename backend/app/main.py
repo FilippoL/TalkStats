@@ -36,7 +36,6 @@ _base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 frontend_path = os.path.join(_base_dir, "frontend", "dist")
 frontend_path = os.path.abspath(frontend_path)
 
-import logging
 logger = logging.getLogger("uvicorn")
 
 if os.path.exists(frontend_path):

@@ -2,7 +2,7 @@ import uuid
 import zipfile
 import io
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Query, HTTPException
 from fastapi.responses import JSONResponse
 

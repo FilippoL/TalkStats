@@ -1,6 +1,5 @@
 from google.cloud import firestore
 from datetime import datetime, timedelta
-import json
 
 class FirestoreClient:
     def __init__(self):

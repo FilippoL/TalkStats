@@ -1,7 +1,6 @@
-from datetime import datetime, timedelta
-from typing import List, Dict
-from collections import Counter, defaultdict
-from statistics import mean, median, mode
+from typing import List
+from collections import Counter
+from statistics import mean
 
 from ..models.message import Message
 from ..models.stats import Insight, InsightResponse
@@ -182,7 +181,6 @@ class InsightsGenerator:
         
         # Participation distribution
         if len(author_counts) > 1:
-            counts = list(author_counts.values())
             insights.append(Insight(
                 title=self.tr['participation_balance_title'],
                 description=self.tr['participation_balance_desc'].format(
@@ -230,7 +228,6 @@ class InsightsGenerator:
             mid_point = len(timestamps) // 2
             first_half = len([t for t in timestamps[:mid_point]])
             second_half = len([t for t in timestamps[mid_point:]])
-            period = mid_point  # approximate days
             if second_half > first_half:
                 trend = self.tr['trend_increasing']
             elif first_half > second_half:

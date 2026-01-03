@@ -1,5 +1,5 @@
 import re
-from typing import List, Dict, Optional
+from typing import List, Optional
 from collections import Counter
 from datetime import datetime
 

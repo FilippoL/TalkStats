@@ -325,13 +325,40 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
     return mappedData;
   };
 
-  // Apply author filtering to insights
-  const applyInsightsMapping = (data: any): any => {
-    if (!data || !data.insights) return data;
+  // Apply author filtering to insights - recalculate stats based on filtered authors
+  const applyInsightsMapping = (insightsData: any, statsData: any): any => {
+    if (!insightsData || !insightsData.insights || !statsData) return insightsData;
     
-    // Note: Insights don't have author information in their structure,
-    // so they can't be filtered by author. Display all insights regardless of selection.
-    return data;
+    const mappedData = JSON.parse(JSON.stringify(insightsData));
+    
+    // Recalculate insights based on filtered stats
+    // Update insights to reflect the currently visible data
+    mappedData.insights = mappedData.insights.map((insight: any) => {
+      const updatedInsight = { ...insight };
+      
+      // Update total messages insight
+      if (insight.category === 'total_messages' || insight.title?.includes('Total Messages')) {
+        updatedInsight.value = statsData.total_messages;
+        updatedInsight.description = `${statsData.total_messages} ${tr.messages} from ${statsData.total_authors} ${tr.authors}`;
+      }
+      // Update unique authors insight
+      else if (insight.category === 'unique_authors' || insight.title?.includes('Unique Authors')) {
+        updatedInsight.value = statsData.total_authors;
+      }
+      // Update average message length insight
+      else if (insight.category === 'avg_message_length' || insight.title?.includes('Average')) {
+        const totalChars = statsData.author_stats.reduce((sum: number, s: any) => sum + s.character_count, 0);
+        const totalMsgs = statsData.author_stats.reduce((sum: number, s: any) => sum + s.message_count, 0);
+        if (totalMsgs > 0) {
+          updatedInsight.value = Math.round(totalChars / totalMsgs);
+          updatedInsight.description = `Average of ${updatedInsight.value} characters per message`;
+        }
+      }
+      
+      return updatedInsight;
+    });
+    
+    return mappedData;
   };
 
   const getEffectiveSelectedAuthors = (): string[] => {
@@ -441,9 +468,10 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       
       setRefreshProgress(90);
       // Apply author mapping to the results
-      setStats(applyAuthorMapping(statsData));
+      const mappedStats = applyAuthorMapping(statsData);
+      setStats(mappedStats);
       setWordFreq(wordFreqData); // Word frequency doesn't need mapping as it's global
-      setInsights(applyInsightsMapping(insightsData));
+      setInsights(applyInsightsMapping(insightsData, mappedStats));
       setEmojiStats(applyEmojiMapping(emojiData));
       setRefreshProgress(100);
     } catch (err: any) {

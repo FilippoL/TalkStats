@@ -69,7 +69,7 @@ export function AuthorSelector({ selectedAuthors, onSelectionChange, onMergeAuth
     setMergeName('');
   };
 
-  if (loading) {
+  if (_loading) {
     return <div>{tr.loadingAuthors}</div>;
   }
 

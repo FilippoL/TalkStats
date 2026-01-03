@@ -327,7 +327,9 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
 
   // Apply author filtering to insights - recalculate stats based on filtered authors
   const applyInsightsMapping = (insightsData: any, statsData: any): any => {
-    if (!insightsData || !insightsData.insights || !statsData) return insightsData;
+    if (!insightsData || !insightsData.insights || !statsData) {
+      return insightsData;
+    }
     
     const mappedData = JSON.parse(JSON.stringify(insightsData));
     
@@ -337,16 +339,17 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       const updatedInsight = { ...insight };
       
       // Update total messages insight
-      if (insight.category === 'total_messages' || insight.title?.includes('Total Messages')) {
+      if (insight.category === 'total_messages' || insight.title?.includes('Total Messages') || insight.title?.includes('Messaggi')) {
         updatedInsight.value = statsData.total_messages;
         updatedInsight.description = `${statsData.total_messages} messages from ${statsData.total_authors} authors`;
       }
       // Update unique authors insight
-      else if (insight.category === 'unique_authors' || insight.title?.includes('Unique Authors')) {
+      else if (insight.category === 'unique_authors' || insight.title?.includes('Unique Authors') || insight.title?.includes('Autori')) {
         updatedInsight.value = statsData.total_authors;
+        updatedInsight.description = `${statsData.total_authors} authors in conversation`;
       }
       // Update average message length insight
-      else if (insight.category === 'avg_message_length' || insight.title?.includes('Average')) {
+      else if (insight.category === 'avg_message_length' || insight.title?.includes('Average') || insight.title?.includes('Lunghezza')) {
         const totalChars = statsData.author_stats.reduce((sum: number, s: any) => sum + s.character_count, 0);
         const totalMsgs = statsData.author_stats.reduce((sum: number, s: any) => sum + s.message_count, 0);
         if (totalMsgs > 0) {
@@ -779,66 +782,86 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       )}
 
       {/* Charts */}
-      <div style={{ display: 'grid', gap: '50px' }}>
+      <div style={{ display: 'grid', gap: '70px' }}>
         {/* Show hourly timeline when day grouping is selected (in addition to the regular timeline) */}
         {timeGroup === 'day' && stats.grouped_data?.hourly && stats.grouped_data.hourly.length > 0 && (
-          <div id="chart-hourly-timeline" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
-            <HourlyTimeline data={stats.grouped_data.hourly} lang={lang} />
+          <div id="chart-hourly-timeline" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+            <div style={{ padding: '20px' }}>
+              <HourlyTimeline data={stats.grouped_data.hourly} lang={lang} />
+            </div>
           </div>
         )}
         
         {/* Regular timeline showing message count over time (from start date to end date) */}
         {stats.time_series.length > 0 && (
-          <div id="chart-message-timeline" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
-            <MessageTimeline data={stats.time_series} timeGroup={timeGroup} lang={lang} />
+          <div id="chart-message-timeline" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+            <div style={{ padding: '20px' }}>
+              <MessageTimeline data={stats.time_series} timeGroup={timeGroup} lang={lang} />
+            </div>
           </div>
         )}
         
         {stats.author_stats.length > 0 && (
           <>
-            <div id="chart-author-activity" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
-              <AuthorActivity data={stats.author_stats} lang={lang} />
+            <div id="chart-author-activity" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+              <div style={{ padding: '20px' }}>
+                <AuthorActivity data={stats.author_stats} lang={lang} />
+              </div>
             </div>
-            <div id="chart-message-length" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
-              <MessageLengthDistribution data={stats.author_stats} lang={lang} />
-              <MessageLengthComparison data={stats.author_stats} lang={lang} />
+            <div id="chart-message-length" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+              <div style={{ padding: '20px' }}>
+                <MessageLengthDistribution data={stats.author_stats} lang={lang} />
+                <MessageLengthComparison data={stats.author_stats} lang={lang} />
+              </div>
             </div>
           </>
         )}
         
         {stats.grouped_data?.message_lengths && stats.grouped_data.message_lengths.length > 0 && (
-          <div style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
-            <MessageLengthHistogram messageLengths={stats.grouped_data.message_lengths} lang={lang} />
+          <div style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+            <div style={{ padding: '20px' }}>
+              <MessageLengthHistogram messageLengths={stats.grouped_data.message_lengths} lang={lang} />
+            </div>
           </div>
         )}
         
         {stats.media_stats && (
-          <div id="chart-media-stats" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
-            <MediaStatistics data={stats.media_stats} timeGroup={timeGroup} totalMessages={stats.total_messages} lang={lang} />
+          <div id="chart-media-stats" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+            <div style={{ padding: '20px' }}>
+              <MediaStatistics data={stats.media_stats} timeGroup={timeGroup} totalMessages={stats.total_messages} lang={lang} />
+            </div>
           </div>
         )}
         
         {stats.time_series.length > 0 && timeGroup === 'hour' && (
-          <div id="chart-activity-heatmap" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
-            <ActivityHeatmap data={stats.time_series} lang={lang} />
+          <div id="chart-activity-heatmap" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+            <div style={{ padding: '20px' }}>
+              <ActivityHeatmap data={stats.time_series} lang={lang} />
+            </div>
           </div>
         )}
         
         {wordFreq && wordFreq.words.length > 0 && (
-          <div id="chart-word-frequency" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
-            <WordFrequency data={wordFreq.words} limit={30} lang={lang} />
+          <div id="chart-word-frequency" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+            <div style={{ padding: '20px' }}>
+              <WordFrequency data={wordFreq.words} limit={30} lang={lang} />
+            </div>
           </div>
         )}
         
         {emojiStats && emojiStats.total_emojis > 0 && (
-          <div id="chart-emoji-stats" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
-            <EmojiStatistics data={emojiStats} lang={lang} />
+          <div id="chart-emoji-stats" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+            <div style={{ padding: '20px' }}>
+              <EmojiStatistics data={emojiStats} lang={lang} />
+            </div>
           </div>
         )}
         
         {stats.grouped_data?.bestemmiometro && (
-          <div id="chart-bestemmiometro" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
-            <Bestemmiometro data={stats.grouped_data.bestemmiometro} />
+          <div id="chart-bestemmiometro" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
+            <div style={{ padding: '20px' }}>
+              <Bestemmiometro data={stats.grouped_data.bestemmiometro} />
+            </div>
           </div>
         )}
       </div>

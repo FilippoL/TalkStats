@@ -26,10 +26,10 @@ export function MediaStatistics({ data, timeGroup, totalMessages, lang }: MediaS
   }));
 
   return (
-    <div style={{ width: '100%', marginBottom: '30px' }}>
+    <div style={{ width: '100%' }}>
       <h3 style={{ marginBottom: '20px' }}>{tr.mediaStatistics}</h3>
       
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px', marginBottom: '30px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px' }}>
         {/* Media by Author - Bar Chart */}
         {mediaByAuthorData.length > 0 && (
           <div style={{ height: '400px' }}>

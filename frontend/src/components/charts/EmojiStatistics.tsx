@@ -56,15 +56,14 @@ export function EmojiStatistics({ data, lang }: EmojiStatisticsProps) {
   }));
 
   return (
-    <div style={{ width: '100%', marginBottom: '30px' }}>
+    <div style={{ width: '100%' }}>
       <h3 style={{ marginBottom: '20px' }}>{tr.emojiStatistics}</h3>
       
       {/* Summary Cards */}
       <div style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
-        gap: '15px', 
-        marginBottom: '30px' 
+        gap: '15px'
       }}>
         <div style={{ 
           backgroundColor: '#f8f9fa', 
@@ -101,7 +100,7 @@ export function EmojiStatistics({ data, lang }: EmojiStatisticsProps) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px', marginBottom: '30px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px' }}>
         {/* Top Emojis Chart */}
         {topEmojisData.length > 0 && (
           <div style={{ height: '400px' }}>
@@ -156,7 +155,7 @@ export function EmojiStatistics({ data, lang }: EmojiStatisticsProps) {
 
       {/* Emojis per Author Bar Chart */}
       {authorData.length > 0 && (
-        <div style={{ height: '400px', marginBottom: '30px' }}>
+        <div style={{ height: '400px' }}>
           <h4 style={{ marginBottom: '10px', fontSize: '16px' }}>{tr.emojisPerAuthor}</h4>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={authorData}>

@@ -17,7 +17,7 @@ export function MessageTimeline({ data, timeGroup, lang }: MessageTimelineProps)
   }));
 
   return (
-    <div style={{ width: '100%', height: '400px', marginBottom: '0px' }}>
+    <div style={{ width: '100%', height: '400px', marginBottom: '5px' }}>
       <h3 style={{ marginBottom: '10px' }}>{tr.messageTimeline}</h3>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={formattedData}>

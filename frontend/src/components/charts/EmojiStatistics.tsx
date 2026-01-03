@@ -103,7 +103,7 @@ export function EmojiStatistics({ data, lang }: EmojiStatisticsProps) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '30px' }}>
         {/* Top Emojis Chart */}
         {topEmojisData.length > 0 && (
-          <div style={{ height: '400px' }}>
+          <div style={{ height: '400px', marginBottom: '40px' }}>
             <h4 style={{ marginBottom: '10px', fontSize: '16px' }}>{tr.mostUsedEmojis}</h4>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topEmojisData} layout="vertical">
@@ -127,7 +127,7 @@ export function EmojiStatistics({ data, lang }: EmojiStatisticsProps) {
 
         {/* Author Emoji Distribution Pie */}
         {authorPieData.length > 0 && (
-          <div style={{ height: '400px' }}>
+          <div style={{ height: '400px', marginBottom: '40px' }}>
             <h4 style={{ marginBottom: '10px', fontSize: '16px' }}>{tr.emojisByAuthor}</h4>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -155,7 +155,7 @@ export function EmojiStatistics({ data, lang }: EmojiStatisticsProps) {
 
       {/* Emojis per Author Bar Chart */}
       {authorData.length > 0 && (
-        <div style={{ height: '400px' }}>
+        <div style={{ height: '400px', marginBottom: '40px' }}>
           <h4 style={{ marginBottom: '10px', fontSize: '16px' }}>{tr.emojisPerAuthor}</h4>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={authorData}>

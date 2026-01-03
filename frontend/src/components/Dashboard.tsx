@@ -614,7 +614,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       {/* Filters */}
       <div style={{ 
         backgroundColor: '#f5f5f5', 
-        padding: '20px', 
+        padding: '50px', 
         borderRadius: '8px', 
         marginBottom: '30px' 
       }}>
@@ -757,7 +757,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
           backgroundColor: '#fff', 
           border: '1px solid #e0e0e0', 
           borderRadius: '8px', 
-          padding: '20px'
+          padding: '50px'
         }}>
           <h2 style={{ marginBottom: '15px', marginTop: 0 }}>{tr.insights}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px' }}>
@@ -788,7 +788,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         {/* Show hourly timeline when day grouping is selected (in addition to the regular timeline) */}
         {timeGroup === 'day' && stats.grouped_data?.hourly && stats.grouped_data.hourly.length > 0 && (
           <div id="chart-hourly-timeline" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
-            <div style={{ padding: '20px' }}>
+            <div style={{ padding: '50px' }}>
               <HourlyTimeline data={stats.grouped_data.hourly} lang={lang} />
             </div>
           </div>
@@ -797,7 +797,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         {/* Regular timeline showing message count over time (from start date to end date) */}
         {stats.time_series.length > 0 && (
           <div id="chart-message-timeline" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
-            <div style={{ padding: '20px' }}>
+            <div style={{ padding: '50px' }}>
               <MessageTimeline data={stats.time_series} timeGroup={timeGroup} lang={lang} />
             </div>
           </div>
@@ -806,12 +806,12 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         {stats.author_stats.length > 0 && (
           <>
             <div id="chart-author-activity" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
-              <div style={{ padding: '20px' }}>
+              <div style={{ padding: '50px' }}>
                 <AuthorActivity data={stats.author_stats} lang={lang} />
               </div>
             </div>
             <div id="chart-message-length" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
-              <div style={{ padding: '20px' }}>
+              <div style={{ padding: '50px' }}>
                 <MessageLengthDistribution data={stats.author_stats} lang={lang} />
                 <MessageLengthComparison data={stats.author_stats} lang={lang} />
               </div>
@@ -821,7 +821,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         
         {stats.grouped_data?.message_lengths && stats.grouped_data.message_lengths.length > 0 && (
           <div style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
-            <div style={{ padding: '20px' }}>
+            <div style={{ padding: '50px' }}>
               <MessageLengthHistogram messageLengths={stats.grouped_data.message_lengths} lang={lang} />
             </div>
           </div>
@@ -829,7 +829,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         
         {stats.media_stats && (
           <div id="chart-media-stats" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
-            <div style={{ padding: '20px' }}>
+            <div style={{ padding: '50px' }}>
               <MediaStatistics data={stats.media_stats} timeGroup={timeGroup} totalMessages={stats.total_messages} lang={lang} />
             </div>
           </div>
@@ -837,7 +837,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         
         {stats.time_series.length > 0 && timeGroup === 'hour' && (
           <div id="chart-activity-heatmap" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
-            <div style={{ padding: '20px' }}>
+            <div style={{ padding: '50px' }}>
               <ActivityHeatmap data={stats.time_series} lang={lang} />
             </div>
           </div>
@@ -845,7 +845,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         
         {wordFreq && wordFreq.words.length > 0 && (
           <div id="chart-word-frequency" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
-            <div style={{ padding: '20px' }}>
+            <div style={{ padding: '50px' }}>
               <WordFrequency data={wordFreq.words} limit={30} lang={lang} />
             </div>
           </div>
@@ -853,7 +853,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         
         {emojiStats && emojiStats.total_emojis > 0 && (
           <div id="chart-emoji-stats" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
-            <div style={{ padding: '20px' }}>
+            <div style={{ padding: '50px' }}>
               <EmojiStatistics data={emojiStats} lang={lang} />
             </div>
           </div>
@@ -861,7 +861,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         
         {stats.grouped_data?.bestemmiometro && (
           <div id="chart-bestemmiometro" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
-            <div style={{ padding: '20px' }}>
+            <div style={{ padding: '50px' }}>
               <Bestemmiometro data={stats.grouped_data.bestemmiometro} />
             </div>
           </div>

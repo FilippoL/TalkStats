@@ -136,6 +136,7 @@ export const translations = {
     copyLink: 'Copia Link',
     generating: 'Generazione...',
     close: 'Chiudi',
+    cancel: 'Annulla',
   },
   en: {
     // App level
@@ -271,6 +272,7 @@ export const translations = {
     copyLink: 'Copy Link',
     generating: 'Generating...',
     close: 'Close',
+    cancel: 'Cancel',
   },
 };
 

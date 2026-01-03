@@ -11,8 +11,9 @@ from ..services.statistics import StatisticsService
 from ..services.word_analysis import WordAnalyzer
 from ..services.insights import InsightsGenerator
 from ..services.emoji_analysis import EmojiAnalyzer
-from ..services.redis_client import redis_client
+from ..services.firestore_client import firestore_client
 from ..models.stats import StatsResponse, WordFrequencyResponse, InsightResponse
+from ..models.message import Message
 
 
 router = APIRouter()
@@ -84,41 +85,104 @@ async def upload_file(
     """Upload and parse WhatsApp chat export file (.txt or .zip)."""
     try:
         # Read file content
-        content = await file.read()
-        
+        try:
+            content = await file.read()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to read uploaded file: {str(e)}")
+
+        if not content or len(content) == 0:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
         # Check if it's a zip file and extract the txt
         filename = file.filename.lower() if file.filename else ""
         if filename.endswith('.zip') or content[:4] == b'PK\x03\x04':  # ZIP magic bytes
             try:
                 text_content = _extract_txt_from_zip(content)
             except ValueError as e:
-                raise HTTPException(status_code=400, detail=str(e))
+                raise HTTPException(status_code=400, detail=f"Invalid zip file: {str(e)}")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Unexpected error extracting zip: {str(e)}")
         else:
-            text_content = content.decode('utf-8', errors='ignore')
-        
+            try:
+                text_content = content.decode('utf-8', errors='ignore')
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to decode file as UTF-8: {str(e)}")
+
+        if not text_content or len(text_content.strip()) == 0:
+            raise HTTPException(status_code=400, detail="File contains no readable text.")
+
         # Detect or use provided language
-        detected_lang = language if language in ['it', 'en'] else _detect_language(text_content)
-        
+        try:
+            detected_lang = language if language in ['it', 'en'] else _detect_language(text_content)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Language detection failed: {str(e)}")
+
         # Parse messages
-        parser = WhatsAppParser()
-        messages = parser.parse(text_content)
-        
+        try:
+            parser = WhatsAppParser()
+            messages = parser.parse(text_content)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to parse WhatsApp messages: {str(e)}")
+
+        if not messages or len(messages) == 0:
+            raise HTTPException(status_code=400, detail="No messages found in the file.")
+
         # Generate unique session ID
         session_id = _generate_session_id()
-        
-        # Store messages in Redis with session ID
+
+
+        # Convert messages to dicts and ensure all datetimes are ISO strings
+        def make_json_serializable(obj):
+            if isinstance(obj, dict):
+                return {k: make_json_serializable(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [make_json_serializable(i) for i in obj]
+            elif isinstance(obj, datetime):
+                return obj.isoformat()
+            else:
+                return obj
+
+        try:
+            messages_serializable = []
+            for m in messages:
+                if hasattr(m, 'dict'):
+                    d = m.dict()
+                elif hasattr(m, '__dict__'):
+                    d = dict(m.__dict__)
+                else:
+                    d = m
+                d = make_json_serializable(d)
+                messages_serializable.append(d)
+        except Exception as e:
+            print(f"[ERROR] Failed to convert messages to serializable: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to serialize messages: {str(e)}")
+
+        # Store session data directly in Firestore (messages stored in subcollection)
         session_data = {
-            'messages': messages,
+            'messages': messages_serializable,  # Will be handled by firestore_client
             'language': detected_lang,
-            'created_at': datetime.utcnow().isoformat(),
+            'created_at': datetime.now().isoformat(),
         }
-        
-        if not redis_client.set(f"session:{session_id}", session_data, SESSION_TTL):
-            raise HTTPException(status_code=500, detail="Failed to store session data")
-        
+
+        # Note: Size check removed - Firestore handles large data via subcollections
+        print(f"[INFO] Processing {len(messages_serializable)} messages")
+
+        try:
+            result = firestore_client.set(f"session:{session_id}", session_data, SESSION_TTL)
+            print(f"[INFO] Firestore set result: {result}")
+            if not result:
+                print(f"[ERROR] Firestore set returned False for session:{session_id}")
+                raise HTTPException(status_code=500, detail="Failed to store session data in Firestore.")
+        except Exception as e:
+            print(f"[ERROR] Firestore error: {e}")
+            raise HTTPException(status_code=500, detail=f"Firestore error: {str(e)}")
+
         # Get authors
-        authors = list(set(m.author for m in messages if not m.is_system))
-        
+        try:
+            authors = list(set(m.author for m in messages if not m.is_system))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to extract authors: {str(e)}")
+
         return JSONResponse(content={
             "status": "success",
             "message_count": len(messages),
@@ -126,17 +190,20 @@ async def upload_file(
             "cache_key": session_id,
             "language": detected_lang
         })
-    
+
+    except HTTPException as e:
+        # Re-raise HTTPExceptions for FastAPI to handle
+        raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
 
 def _get_session_data(session_id: Optional[str]) -> dict:
-    """Get session data from Redis by session ID."""
+    """Get session data from Firestore by session ID."""
     if not session_id:
         raise HTTPException(status_code=400, detail="No data available. Please upload a file first.")
     
-    session_data = redis_client.get(f"session:{session_id}")
+    session_data = firestore_client.get(f"session:{session_id}")
     
     if not session_data:
         raise HTTPException(status_code=400, detail="No data available. Please upload a file first.")
@@ -147,7 +214,8 @@ def _get_session_data(session_id: Optional[str]) -> dict:
 def _get_messages_from_session(session_id: Optional[str]):
     """Get messages from session."""
     session_data = _get_session_data(session_id)
-    return session_data['messages']
+    messages_dicts = session_data['messages']
+    return [Message(**msg_dict) for msg_dict in messages_dicts]
 
 
 def _get_language_from_session(session_id: Optional[str]) -> str:
@@ -329,7 +397,7 @@ async def create_share_link(cache_key: Optional[str] = Query(None, alias="key"))
         raise HTTPException(status_code=400, detail="No session key provided")
     
     # Get session data
-    session_data = redis_client.get(f"session:{cache_key}")
+    session_data = firestore_client.get(f"session:{cache_key}")
     if not session_data:
         raise HTTPException(status_code=400, detail="Session not found or expired")
     
@@ -368,7 +436,7 @@ async def create_share_link(cache_key: Optional[str] = Query(None, alias="key"))
         'expires_at': expires_at.isoformat(),
     }
     
-    if not redis_client.set(f"share:{share_id}", snapshot, SHARE_TTL):
+    if not firestore_client.set(f"share:{share_id}", snapshot, SHARE_TTL):
         raise HTTPException(status_code=500, detail="Failed to create share link")
     
     return {
@@ -384,7 +452,7 @@ async def get_shared_data(share_id: str):
     Get shared analysis data by share ID.
     Returns the frozen stats snapshot.
     """
-    snapshot = redis_client.get(f"share:{share_id}")
+    snapshot = firestore_client.get(f"share:{share_id}")
     
     if not snapshot:
         raise HTTPException(status_code=404, detail="Share link not found or expired")

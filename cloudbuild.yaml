@@ -9,42 +9,20 @@ steps:
   
   # Deploy container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+    entrypoint: bash
     args:
-      - 'run'
-      - 'deploy'
-      - 'whatsapp-analyzer'
-      - '--image'
-      - 'gcr.io/$PROJECT_ID/whatsapp-analyzer'
-      - '--region'
-      - 'europe-west1'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
-      - '--memory'
-      - '512Mi'
-      - '--cpu'
-      - '1'
-      - '--min-instances'
-      - '0'
-      - '--max-instances'
-      - '10'
-      - '--port'
-      - '8000'
-      - '--set-env-vars'
-      - 'UPSTASH_REDIS_REST_URL=${_UPSTASH_URL},UPSTASH_REDIS_REST_TOKEN=${_UPSTASH_TOKEN}'
-
-# ============================================================
-# UPSTASH SETUP (FREE - saves ~$42/month vs Memorystore)
-# ============================================================
-# 1. Go to https://console.upstash.com and create free account
-# 2. Create a Redis database (select EU region)
-# 3. Copy REST URL and REST Token from dashboard
-# 4. Update the values below:
-
-substitutions:
-  _UPSTASH_URL: 'YOUR_UPSTASH_REST_URL'  # Replace with your Upstash REST URL
-  _UPSTASH_TOKEN: 'YOUR_UPSTASH_REST_TOKEN'  # Replace with your Upstash REST Token
+      - '-c'
+      - |
+        gcloud run deploy whatsapp-analyzer \
+          --image gcr.io/$PROJECT_ID/whatsapp-analyzer \
+          --region europe-west1 \
+          --platform managed \
+          --allow-unauthenticated \
+          --memory 2Gi \
+          --cpu 1 \
+          --min-instances 0 \
+          --max-instances 10 \
+          --port 8000
 
 images:
   - 'gcr.io/$PROJECT_ID/whatsapp-analyzer'

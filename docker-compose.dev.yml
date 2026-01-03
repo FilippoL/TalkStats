@@ -1,12 +1,4 @@
 services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-
   backend:
     build:
       context: ./backend
@@ -19,11 +11,19 @@ services:
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - GOOGLE_CLOUD_PROJECT=whatsappanalyzer-481609
+      - FIRESTORE_EMULATOR_HOST=firestore-emulator:8080
     depends_on:
-      - redis
+      - firestore-emulator
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  firestore-emulator:
+    image: google/cloud-sdk:alpine
+    ports:
+      - "8080:8080"
+    command: sh -c "apk add --no-cache openjdk21 && echo 'y' | gcloud components install beta && echo 'y' | gcloud components install cloud-firestore-emulator && gcloud --quiet beta emulators firestore start --host-port=0.0.0.0:8080 --project=whatsappanalyzer-481609"
+    environment:
+      - FIRESTORE_PROJECT_ID=whatsappanalyzer-481609
 
   frontend:
     build:
@@ -35,10 +35,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - VITE_API_BASE=http://127.0.0.1:8000
+      - VITE_API_BASE=http://localhost:8000
     depends_on:
       - backend
     command: npm run dev -- --host 0.0.0.0
-
-volumes:
-  redis_data:

@@ -15,6 +15,7 @@ export function ShareModal({ isOpen, onClose, lang, cacheKey }: ShareModalProps)
   const tr = getTranslations(lang);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,21 +25,26 @@ export function ShareModal({ isOpen, onClose, lang, cacheKey }: ShareModalProps)
     if (!cacheKey) return;
     
     setIsGenerating(true);
+    setGenerationProgress(10);
     setError(null);
     
     try {
+      setGenerationProgress(50);
       const response = await axios.post(`${API_BASE}/api/share?key=${encodeURIComponent(cacheKey)}`);
+      setGenerationProgress(90);
       const { share_id } = response.data;
       
       // Generate the full share URL
       const baseUrl = window.location.origin;
       const fullUrl = `${baseUrl}/share/${share_id}`;
       setShareUrl(fullUrl);
+      setGenerationProgress(100);
     } catch (err: any) {
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to generate share link';
       setError(errorMsg);
     } finally {
       setIsGenerating(false);
+      setGenerationProgress(0);
     }
   };
 
@@ -117,6 +123,29 @@ export function ShareModal({ isOpen, onClose, lang, cacheKey }: ShareModalProps)
             >
               {isGenerating ? tr.generating : (lang === 'it' ? 'Genera Link' : 'Generate Link')}
             </button>
+            {isGenerating && (
+              <div style={{ marginTop: '15px' }}>
+                <div style={{
+                  width: '100%',
+                  height: '6px',
+                  backgroundColor: '#e0e0e0',
+                  borderRadius: '3px',
+                  overflow: 'hidden',
+                  marginBottom: '5px'
+                }}>
+                  <div style={{
+                    width: `${generationProgress}%`,
+                    height: '100%',
+                    backgroundColor: '#007bff',
+                    borderRadius: '3px',
+                    transition: 'width 0.3s ease-out'
+                  }} />
+                </div>
+                <div style={{ textAlign: 'center', color: '#666', fontSize: '12px' }}>
+                  {Math.round(generationProgress)}%
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div>

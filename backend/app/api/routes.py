@@ -402,7 +402,8 @@ async def create_share_link(cache_key: Optional[str] = Query(None, alias="key"))
         raise HTTPException(status_code=400, detail="Session not found or expired")
     
     # Get all the stats for the snapshot
-    messages = session_data['messages']
+    messages_dicts = session_data['messages']
+    messages = [Message(**msg_dict) for msg_dict in messages_dicts]
     language = session_data.get('language', 'en')
     
     # Compute stats

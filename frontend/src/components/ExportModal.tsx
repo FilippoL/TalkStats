@@ -150,7 +150,7 @@ export function ExportModal({ isOpen, onClose, lang, hasBestemmiometro }: Export
                   onChange={() => toggleSection(id)}
                   style={{ marginRight: '10px' }}
                 />
-                <span>{(tr as any)[labelKey] || labelKey}</span>
+                <span>{(tr as Record<string, string>)[labelKey] || labelKey}</span>
               </label>
             ))}
           </div>

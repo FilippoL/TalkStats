@@ -39,8 +39,8 @@ export function ShareModal({ isOpen, onClose, lang, cacheKey }: ShareModalProps)
       const fullUrl = `${baseUrl}/share/${share_id}`;
       setShareUrl(fullUrl);
       setGenerationProgress(100);
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.detail || err.message || 'Failed to generate share link';
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to generate share link';
       setError(errorMsg);
     } finally {
       setIsGenerating(false);

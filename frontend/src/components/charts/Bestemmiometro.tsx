@@ -87,7 +87,7 @@ export function Bestemmiometro({ data }: BestemmiometroProps) {
 
   // Get phrases that have counts > 0
   const phraseEntries = Object.entries(data.by_phrase)
-    .filter(([_, count]) => count > 0)
+    .filter(([, count]) => count > 0)
     .sort((a, b) => b[1] - a[1]);
   
   // Create color mapping for phrases

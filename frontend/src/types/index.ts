@@ -88,7 +88,7 @@ export interface WordFrequencyResponse {
 export interface Insight {
   title: string;
   description: string;
-  value?: any;
+  value?: string | number | boolean;
   category: string;
 }
 

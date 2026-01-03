@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { StatsResponse, WordFrequencyResponse, InsightResponse, EmojiStatsResponse } from '../types';
 import { getTranslations, t, Language } from '../i18n/translations';
@@ -34,28 +34,24 @@ export function SharedDashboard({ shareId }: SharedDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadSharedData = async () => {
+  const loadSharedData = useCallback(async () => {
     setLoading(true);
     setError(null);
     
     try {
       const response = await axios.get<SharedSnapshot>(`${API_BASE}/api/share/${shareId}`);
       setSnapshot(response.data);
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.detail || err.message || 'Failed to load shared data';
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to load shared data';
       setError(errorMsg);
     } finally {
       setLoading(false);
     }
-  };
+  }, [shareId]);
 
   useEffect(() => {
     loadSharedData();
-  }, [shareId]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [loadSharedData]);
 
   if (loading) {
     return (

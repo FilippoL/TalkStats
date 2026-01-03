@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useStats, getLanguage } from '../hooks/useStats';
-import { StatsResponse, WordFrequencyResponse, InsightResponse, EmojiStatsResponse } from '../types';
+import { StatsResponse, WordFrequencyResponse, InsightResponse, EmojiStatsResponse, AuthorStats, Insight, EmojiItem, AuthorEmojiStats, ConsecutiveStreak, ClimaxInstance, TimeSeriesDataPoint } from '../types';
 import { getTranslations, t, Language } from '../i18n/translations';
 import { StatsCard } from './StatsCard';
 import { AuthorSelector } from './AuthorSelector';
@@ -72,9 +72,98 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
     }
   }, [loading, stats]);
 
+  // Define loadData before useEffect that uses it
+  const loadData = useCallback(async () => {
+    setIsRefreshing(true);
+    setRefreshProgress(10);
+    
+    try {
+      setRefreshProgress(25);
+      const effectiveAuthors = getEffectiveSelectedAuthors();
+      const [statsData, wordFreqData, insightsData, emojiData] = await Promise.all([
+        getStats({
+          authors: effectiveAuthors.length > 0 ? effectiveAuthors : undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+          timeGroup,
+          groupByAuthor: true,
+        }),
+        getWordFrequency({
+          authors: effectiveAuthors.length > 0 ? effectiveAuthors : undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+          limit: 50,
+          minLength: 1,
+        }),
+        getInsights(),
+        getEmojiStats({
+          authors: effectiveAuthors.length > 0 ? effectiveAuthors : undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+        }),
+      ]);
+      
+      setRefreshProgress(90);
+      // Apply author mapping to the results
+      const mappedStats = applyAuthorMapping(statsData);
+      setStats(mappedStats);
+      setWordFreq(wordFreqData); // Word frequency doesn't need mapping as it's global
+      setInsights(applyInsightsMapping(insightsData, mappedStats));
+      setEmojiStats(applyEmojiMapping(emojiData));
+      setRefreshProgress(100);
+    } catch (err: unknown) {
+      console.error('Failed to load data:', err);
+      // Check if this is a session expired error (HTTP 400 with specific message)
+      // Only trigger redirect if it's definitely a "no data" error, not a transient network issue
+      const errorMessage = err instanceof Error ? err.message : '';
+      const isNoDataError = errorMessage.includes('No data available') && errorMessage.includes('upload a file');
+      if (isNoDataError) {
+        // Clear session storage and show session expired state
+        sessionStorage.removeItem('chatCacheKey');
+        sessionStorage.removeItem('chatLanguage');
+        setSessionExpired(true);
+      }
+    } finally {
+      setIsRefreshing(false);
+      setRefreshProgress(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAuthors, timeGroup, startDate, endDate, authorMapping, deletedAuthors, originalAuthors]);
+
+  // Helper functions for author mapping
+  const getEffectiveSelectedAuthors = (): string[] => {
+    // We need to send ORIGINAL author names to the API, not merged names
+    // The mapping is applied client-side after data is received
+    
+    if (selectedAuthors.length === 0) {
+      // No filter - return undefined to get all authors
+      return [];
+    }
+    
+    // Expand merged names back to original authors for API query
+    const expandedAuthors = new Set<string>();
+    
+    selectedAuthors.forEach(author => {
+      // Check if this is a merged name - find all original authors mapped to it
+      const originalAuthorsForMerge = Object.entries(authorMapping)
+        .filter(([, merged]) => merged === author)
+        .map(([original]) => original);
+      
+      if (originalAuthorsForMerge.length > 0) {
+        // It's a merged name - add all original authors
+        originalAuthorsForMerge.forEach(a => expandedAuthors.add(a));
+      } else if (!deletedAuthors.has(author)) {
+        // It's an original author name
+        expandedAuthors.add(author);
+      }
+    });
+    
+    return Array.from(expandedAuthors);
+  };
+
   useEffect(() => {
     loadData();
-  }, [selectedAuthors, timeGroup, startDate, endDate, authorMapping, deletedAuthors]);
+  }, [loadData, selectedAuthors, timeGroup, startDate, endDate, authorMapping, deletedAuthors]);
 
   // Fetch original authors on mount - only once to prevent infinite loop
   useEffect(() => {
@@ -114,11 +203,11 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         } else {
           // Merge stats
           mergedStats[mappedAuthor].message_count += stat.message_count;
-          mergedStats[mappedAuthor].word_count += stat.word_count;
-          mergedStats[mappedAuthor].character_count += stat.character_count;
+          mergedStats[mappedAuthor].total_chars += stat.total_chars;
           mergedStats[mappedAuthor].media_count += stat.media_count;
+          // Update average message length
           mergedStats[mappedAuthor].avg_message_length = 
-            (mergedStats[mappedAuthor].character_count / mergedStats[mappedAuthor].message_count);
+            (mergedStats[mappedAuthor].total_chars / mergedStats[mappedAuthor].message_count);
         }
       });
       
@@ -133,9 +222,9 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
     
     // Apply mapping to grouped data by author
     if (mappedData.grouped_data?.by_author) {
-      const mergedGrouped: Record<string, any> = {};
+      const mergedGrouped: Record<string, TimeSeriesDataPoint[]> = {};
       
-      Object.entries(mappedData.grouped_data.by_author).forEach(([author, authorData]: [string, TimeSeriesDataPoint[]]) => {
+      Object.entries(mappedData.grouped_data.by_author as Record<string, TimeSeriesDataPoint[]>).forEach(([author, authorData]) => {
         const mappedAuthor = authorMapping[author] || author;
         
         if (deletedAuthors.has(author)) {
@@ -146,9 +235,9 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
           mergedGrouped[mappedAuthor] = authorData;
         } else {
           // Merge time series data
-          mergedGrouped[mappedAuthor] = mergedGrouped[mappedAuthor].map((point: any, index: number) => ({
+          mergedGrouped[mappedAuthor] = mergedGrouped[mappedAuthor].map((point: TimeSeriesDataPoint, index: number) => ({
             ...point,
-            count: point.count + (authorData[index]?.count || 0)
+            value: point.value + (authorData[index]?.value || 0)
           }));
         }
       });
@@ -160,7 +249,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
     if (mappedData.media_stats?.media_by_author) {
       const mergedMedia: Record<string, number> = {};
       
-      Object.entries(mappedData.media_stats.media_by_author).forEach(([author, count]: [string, number]) => {
+      Object.entries(mappedData.media_stats.media_by_author as Record<string, number>).forEach(([author, count]) => {
         const mappedAuthor = authorMapping[author] || author;
         
         if (deletedAuthors.has(author)) {
@@ -181,7 +270,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       if (bestemmiometro.by_author) {
         const mergedByAuthor: Record<string, Record<string, number>> = {};
         
-        Object.entries(bestemmiometro.by_author).forEach(([author, phrases]: [string, Record<string, number>]) => {
+        Object.entries(bestemmiometro.by_author as Record<string, Record<string, number>>).forEach(([author, phrases]) => {
           const mappedAuthor = authorMapping[author] || author;
           
           if (deletedAuthors.has(author)) {
@@ -191,7 +280,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
           if (!mergedByAuthor[mappedAuthor]) {
             mergedByAuthor[mappedAuthor] = { ...phrases };
           } else {
-            Object.entries(phrases).forEach(([phrase, count]: [string, any]) => {
+            Object.entries(phrases).forEach(([phrase, count]: [string, number]) => {
               mergedByAuthor[mappedAuthor][phrase] = (mergedByAuthor[mappedAuthor][phrase] || 0) + count;
             });
           }
@@ -204,7 +293,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       if (bestemmiometro.by_author_total) {
         const mergedTotal: Record<string, number> = {};
         
-        Object.entries(bestemmiometro.by_author_total).forEach(([author, count]: [string, any]) => {
+        Object.entries(bestemmiometro.by_author_total as Record<string, number>).forEach(([author, count]) => {
           const mappedAuthor = authorMapping[author] || author;
           
           if (deletedAuthors.has(author)) {
@@ -221,7 +310,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       if (bestemmiometro.per_capita) {
         const mergedPerCapita: Record<string, number> = {};
         
-        Object.entries(bestemmiometro.per_capita).forEach(([author, value]: [string, any]) => {
+        Object.entries(bestemmiometro.per_capita as Record<string, number>).forEach(([author, value]) => {
           const mappedAuthor = authorMapping[author] || author;
           
           if (deletedAuthors.has(author)) {
@@ -243,7 +332,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       if (bestemmiometro.climax_by_author) {
         const mergedClimax: Record<string, number> = {};
         
-        Object.entries(bestemmiometro.climax_by_author).forEach(([author, count]: [string, any]) => {
+        Object.entries(bestemmiometro.climax_by_author as Record<string, number>).forEach(([author, count]) => {
           const mappedAuthor = authorMapping[author] || author;
           
           if (deletedAuthors.has(author)) {
@@ -259,8 +348,8 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       // Update consecutive_streaks author names
       if (bestemmiometro.consecutive_streaks) {
         bestemmiometro.consecutive_streaks = bestemmiometro.consecutive_streaks
-          .filter((streak: any) => !deletedAuthors.has(streak.author))
-          .map((streak: any) => ({
+          .filter((streak: ConsecutiveStreak) => !deletedAuthors.has(streak.author))
+          .map((streak: ConsecutiveStreak) => ({
             ...streak,
             author: authorMapping[streak.author] || streak.author
           }));
@@ -269,8 +358,8 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       // Update climax_instances author names
       if (bestemmiometro.climax_instances) {
         bestemmiometro.climax_instances = bestemmiometro.climax_instances
-          .filter((instance: any) => !deletedAuthors.has(instance.author))
-          .map((instance: any) => ({
+          .filter((instance: ClimaxInstance) => !deletedAuthors.has(instance.author))
+          .map((instance: ClimaxInstance) => ({
             ...instance,
             author: authorMapping[instance.author] || instance.author
           }));
@@ -287,9 +376,9 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
     const mappedData = JSON.parse(JSON.stringify(data));
     
     if (mappedData.by_author) {
-      const mergedByAuthor: Record<string, any> = {};
+      const mergedByAuthor: Record<string, AuthorEmojiStats> = {};
       
-      Object.entries(mappedData.by_author).forEach(([author, stats]: [string, AuthorEmojiStats]) => {
+      Object.entries(mappedData.by_author as Record<string, AuthorEmojiStats>).forEach(([author, stats]) => {
         const mappedAuthor = authorMapping[author] || author;
         
         if (deletedAuthors.has(author)) {
@@ -305,7 +394,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
           
           // Merge top_emojis arrays
           const emojiCounts: Record<string, number> = {};
-          [...mergedByAuthor[mappedAuthor].top_emojis, ...stats.top_emojis].forEach((item: any) => {
+          [...mergedByAuthor[mappedAuthor].top_emojis, ...stats.top_emojis].forEach((item: EmojiItem) => {
             emojiCounts[item.emoji] = (emojiCounts[item.emoji] || 0) + item.count;
           });
           mergedByAuthor[mappedAuthor].top_emojis = Object.entries(emojiCounts)
@@ -326,7 +415,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
   };
 
   // Apply author filtering to insights - recalculate stats based on filtered authors
-  const applyInsightsMapping = (insightsData: InsightResponse | null, statsData: StatsResponse): InsightResponse | null => {
+  const applyInsightsMapping = (insightsData: InsightResponse | null, statsData: StatsResponse | null): InsightResponse | null => {
     if (!insightsData || !insightsData.insights || !statsData) {
       return insightsData;
     }
@@ -335,8 +424,8 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
     
     // Recalculate insights based on filtered stats
     // Update insights to reflect the currently visible data
-    mappedData.insights = mappedData.insights.map((insight: any) => {
-      const updatedInsight = { ...insight };
+    mappedData.insights = mappedData.insights.map((insight: Insight): Insight => {
+      const updatedInsight: Insight = { ...insight };
       
       // Update total messages insight
       if (insight.category === 'total_messages' || insight.title?.includes('Total Messages') || insight.title?.includes('Messaggi')) {
@@ -350,8 +439,8 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       }
       // Update average message length insight
       else if (insight.category === 'avg_message_length' || insight.title?.includes('Average') || insight.title?.includes('Lunghezza')) {
-        const totalChars = statsData.author_stats.reduce((sum: number, s: any) => sum + s.character_count, 0);
-        const totalMsgs = statsData.author_stats.reduce((sum: number, s: any) => sum + s.message_count, 0);
+        const totalChars = statsData.author_stats.reduce((sum: number, s: AuthorStats) => sum + s.total_chars, 0);
+        const totalMsgs = statsData.author_stats.reduce((sum: number, s: AuthorStats) => sum + s.message_count, 0);
         if (totalMsgs > 0) {
           updatedInsight.value = Math.round(totalChars / totalMsgs);
           updatedInsight.description = `Average of ${updatedInsight.value} characters per message`;
@@ -362,36 +451,6 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
     });
     
     return mappedData;
-  };
-
-  const getEffectiveSelectedAuthors = (): string[] => {
-    // We need to send ORIGINAL author names to the API, not merged names
-    // The mapping is applied client-side after data is received
-    
-    if (selectedAuthors.length === 0) {
-      // No filter - return undefined to get all authors
-      return [];
-    }
-    
-    // Expand merged names back to original authors for API query
-    const expandedAuthors = new Set<string>();
-    
-    selectedAuthors.forEach(author => {
-      // Check if this is a merged name - find all original authors mapped to it
-      const originalAuthorsForMerge = Object.entries(authorMapping)
-        .filter(([_, merged]) => merged === author)
-        .map(([original, _]) => original);
-      
-      if (originalAuthorsForMerge.length > 0) {
-        // It's a merged name - add all original authors
-        originalAuthorsForMerge.forEach(a => expandedAuthors.add(a));
-      } else if (!deletedAuthors.has(author)) {
-        // It's an original author name
-        expandedAuthors.add(author);
-      }
-    });
-    
-    return Array.from(expandedAuthors);
   };
 
   const getAvailableAuthors = (): string[] => {
@@ -438,63 +497,6 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
   };
 
   const hasAuthorModifications = Object.keys(authorMapping).length > 0 || deletedAuthors.size > 0;
-
-  const loadData = useCallback(async () => {
-    setIsRefreshing(true);
-    setRefreshProgress(10);
-    
-    try {
-      setRefreshProgress(25);
-      const effectiveAuthors = getEffectiveSelectedAuthors();
-      const [statsData, wordFreqData, insightsData, emojiData] = await Promise.all([
-        getStats({
-          authors: effectiveAuthors.length > 0 ? effectiveAuthors : undefined,
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
-          timeGroup,
-          groupByAuthor: true,
-        }),
-        getWordFrequency({
-          authors: effectiveAuthors.length > 0 ? effectiveAuthors : undefined,
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
-          limit: 50,
-          minLength: 1,
-        }),
-        getInsights(),
-        getEmojiStats({
-          authors: effectiveAuthors.length > 0 ? effectiveAuthors : undefined,
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
-        }),
-      ]);
-      
-      setRefreshProgress(90);
-      // Apply author mapping to the results
-      const mappedStats = applyAuthorMapping(statsData);
-      setStats(mappedStats);
-      setWordFreq(wordFreqData); // Word frequency doesn't need mapping as it's global
-      setInsights(applyInsightsMapping(insightsData, mappedStats));
-      setEmojiStats(applyEmojiMapping(emojiData));
-      setRefreshProgress(100);
-    } catch (err: any) {
-      console.error('Failed to load data:', err);
-      // Check if this is a session expired error (HTTP 400 with specific message)
-      // Only trigger redirect if it's definitely a "no data" error, not a transient network issue
-      const errorMessage = err?.message || '';
-      const isNoDataError = errorMessage.includes('No data available') && errorMessage.includes('upload a file');
-      if (isNoDataError) {
-        // Clear session storage and show session expired state
-        sessionStorage.removeItem('chatCacheKey');
-        sessionStorage.removeItem('chatLanguage');
-        setSessionExpired(true);
-      }
-    } finally {
-      setIsRefreshing(false);
-      setRefreshProgress(0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAuthors, timeGroup, startDate, endDate, authorMapping, deletedAuthors, originalAuthors]);
 
   if (loading && !stats) {
     return (

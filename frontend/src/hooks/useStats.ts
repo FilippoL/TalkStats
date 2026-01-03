@@ -39,8 +39,8 @@ export function useStats() {
       setCacheKeyStorage(response.data.cache_key);
       setLanguageStorage(response.data.language);
       return response.data;
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Failed to upload file';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to upload file';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -71,8 +71,8 @@ export function useStats() {
       
       const response = await axios.get<StatsResponse>(`${API_BASE}/api/stats?${queryParams.toString()}`);
       return response.data;
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Failed to fetch stats';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch stats';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -103,8 +103,8 @@ export function useStats() {
       
       const response = await axios.get<WordFrequencyResponse>(`${API_BASE}/api/word-frequency?${queryParams.toString()}`);
       return response.data;
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Failed to fetch word frequency';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch word frequency';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -122,8 +122,8 @@ export function useStats() {
       
       const response = await axios.get<InsightResponse>(`${API_BASE}/api/insights?${queryParams.toString()}`);
       return response.data;
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Failed to fetch insights';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch insights';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -139,8 +139,8 @@ export function useStats() {
       
       const response = await axios.get<{ authors: string[] }>(`${API_BASE}/api/authors?${queryParams.toString()}`);
       return response.data.authors;
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Failed to fetch authors';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch authors';
       setError(errorMessage);
       throw new Error(errorMessage);
     }
@@ -165,8 +165,8 @@ export function useStats() {
       
       const response = await axios.get<EmojiStatsResponse>(`${API_BASE}/api/emoji-stats?${queryParams.toString()}`);
       return response.data;
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Failed to fetch emoji stats';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch emoji stats';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {

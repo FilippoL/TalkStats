@@ -339,7 +339,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       // Update total messages insight
       if (insight.category === 'total_messages' || insight.title?.includes('Total Messages')) {
         updatedInsight.value = statsData.total_messages;
-        updatedInsight.description = `${statsData.total_messages} ${tr.messages} from ${statsData.total_authors} ${tr.authors}`;
+        updatedInsight.description = `${statsData.total_messages} messages from ${statsData.total_authors} authors`;
       }
       // Update unique authors insight
       else if (insight.category === 'unique_authors' || insight.title?.includes('Unique Authors')) {
@@ -589,7 +589,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
 
   console.log('Rendering dashboard');
   return (
-    <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto', paddingBottom: '40px' }}>
       {/* Export and Share Modals */}
       <ExportModal 
         isOpen={showExportModal}
@@ -779,7 +779,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       )}
 
       {/* Charts */}
-      <div style={{ display: 'grid', gap: '30px' }}>
+      <div style={{ display: 'grid', gap: '50px' }}>
         {/* Show hourly timeline when day grouping is selected (in addition to the regular timeline) */}
         {timeGroup === 'day' && stats.grouped_data?.hourly && stats.grouped_data.hourly.length > 0 && (
           <div id="chart-hourly-timeline" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>

@@ -13,7 +13,7 @@ export function WordFrequency({ data, limit = 20, lang }: WordFrequencyProps) {
   const displayData = data.slice(0, limit).reverse(); // Reverse to show top words at top
 
   return (
-    <div style={{ width: '100%', height: '500px' }}>
+    <div style={{ width: '100%', height: '500px', marginBottom: '0px' }}>
       <h3 style={{ marginBottom: '10px' }}>{t(tr.mostFrequentWords, { limit })}</h3>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={displayData} layout="vertical">

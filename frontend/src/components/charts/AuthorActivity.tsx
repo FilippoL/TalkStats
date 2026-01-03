@@ -11,7 +11,7 @@ export function AuthorActivity({ data, lang }: AuthorActivityProps) {
   const tr = getTranslations(lang);
   
   return (
-    <div style={{ width: '100%', height: '400px' }}>
+    <div style={{ width: '100%', height: '400px', marginBottom: '0px' }}>
       <h3 style={{ marginBottom: '10px' }}>{tr.authorActivity}</h3>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data}>

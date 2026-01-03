@@ -91,7 +91,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
   }, []); // Empty dependency - run only once on mount
 
   // Helper functions for author mapping
-  const applyAuthorMapping = (data: any): any => {
+  const applyAuthorMapping = (data: StatsResponse | null): StatsResponse | null => {
     if (!data) return data;
     
     // Deep clone the data to avoid mutating the original
@@ -99,9 +99,9 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
     
     // Apply mapping to author stats
     if (mappedData.author_stats) {
-      const mergedStats: Record<string, any> = {};
+      const mergedStats: Record<string, AuthorStats> = {};
       
-      mappedData.author_stats.forEach((stat: any) => {
+      mappedData.author_stats.forEach((stat: AuthorStats) => {
         const originalAuthor = stat.author;
         const mappedAuthor = authorMapping[originalAuthor] || originalAuthor;
         
@@ -127,7 +127,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       mappedData.total_authors = mappedData.author_stats.length;
       // Update total_messages to reflect the sum of remaining authors' messages
       mappedData.total_messages = mappedData.author_stats.reduce(
-        (sum: number, stat: any) => sum + stat.message_count, 0
+        (sum: number, stat: AuthorStats) => sum + stat.message_count, 0
       );
     }
     
@@ -135,7 +135,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
     if (mappedData.grouped_data?.by_author) {
       const mergedGrouped: Record<string, any> = {};
       
-      Object.entries(mappedData.grouped_data.by_author).forEach(([author, authorData]: [string, any]) => {
+      Object.entries(mappedData.grouped_data.by_author).forEach(([author, authorData]: [string, TimeSeriesDataPoint[]]) => {
         const mappedAuthor = authorMapping[author] || author;
         
         if (deletedAuthors.has(author)) {
@@ -160,7 +160,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
     if (mappedData.media_stats?.media_by_author) {
       const mergedMedia: Record<string, number> = {};
       
-      Object.entries(mappedData.media_stats.media_by_author).forEach(([author, count]: [string, any]) => {
+      Object.entries(mappedData.media_stats.media_by_author).forEach(([author, count]: [string, number]) => {
         const mappedAuthor = authorMapping[author] || author;
         
         if (deletedAuthors.has(author)) {
@@ -181,7 +181,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       if (bestemmiometro.by_author) {
         const mergedByAuthor: Record<string, Record<string, number>> = {};
         
-        Object.entries(bestemmiometro.by_author).forEach(([author, phrases]: [string, any]) => {
+        Object.entries(bestemmiometro.by_author).forEach(([author, phrases]: [string, Record<string, number>]) => {
           const mappedAuthor = authorMapping[author] || author;
           
           if (deletedAuthors.has(author)) {
@@ -281,7 +281,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
   };
 
   // Apply author mapping to emoji stats
-  const applyEmojiMapping = (data: any): any => {
+  const applyEmojiMapping = (data: EmojiStatsResponse | null): EmojiStatsResponse | null => {
     if (!data) return data;
     
     const mappedData = JSON.parse(JSON.stringify(data));
@@ -289,7 +289,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
     if (mappedData.by_author) {
       const mergedByAuthor: Record<string, any> = {};
       
-      Object.entries(mappedData.by_author).forEach(([author, stats]: [string, any]) => {
+      Object.entries(mappedData.by_author).forEach(([author, stats]: [string, AuthorEmojiStats]) => {
         const mappedAuthor = authorMapping[author] || author;
         
         if (deletedAuthors.has(author)) {
@@ -326,7 +326,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
   };
 
   // Apply author filtering to insights - recalculate stats based on filtered authors
-  const applyInsightsMapping = (insightsData: any, statsData: any): any => {
+  const applyInsightsMapping = (insightsData: InsightResponse | null, statsData: StatsResponse): InsightResponse | null => {
     if (!insightsData || !insightsData.insights || !statsData) {
       return insightsData;
     }

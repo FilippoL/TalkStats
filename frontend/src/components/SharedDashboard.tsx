@@ -34,10 +34,6 @@ export function SharedDashboard({ shareId }: SharedDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadSharedData();
-  }, [shareId]);
-
   const loadSharedData = async () => {
     setLoading(true);
     setError(null);
@@ -48,6 +44,14 @@ export function SharedDashboard({ shareId }: SharedDashboardProps) {
     } catch (err: any) {
       const errorMsg = err.response?.data?.detail || err.message || 'Failed to load shared data';
       setError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSharedData();
+  }, [shareId]);
     } finally {
       setLoading(false);
     }

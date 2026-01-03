@@ -41,9 +41,9 @@ function App() {
       }
     };
     
-    // Check on mount and whenever dashboardKey changes (new file uploaded)
+    // Check on mount and whenever dashboardKey or lang changes
     checkLanguage();
-  }, [dashboardKey]);
+  }, [dashboardKey, lang]);
 
   const handleUploadSuccess = () => {
     // Update language from storage after upload

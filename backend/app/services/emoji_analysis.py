@@ -49,7 +49,7 @@ class EmojiAnalyzer:
             for e in emojis:
                 # Handle compound emojis (with ZWJ sequences)
                 total_emoji_counts[e] += 1
-                author_emoji_counts[msg.author][emoji] += 1
+                author_emoji_counts[msg.author][e] += 1
                 author_total_emojis[msg.author] += 1
                 total_emojis += 1
         

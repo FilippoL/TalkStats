@@ -334,7 +334,7 @@ PRs welcome! Some ideas:
 - [x] ~~Share links~~ ✅ Done!
 - [ ] Dark mode
 - [ ] More languages for stopwords/sentiment
-- [ ] Unit tests (yeah, I know...)
+- [x] ~~Unit tests~~ ✅ Started! (emoji analysis test suite added)
 
 ---
 

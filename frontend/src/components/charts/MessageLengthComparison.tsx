@@ -22,7 +22,7 @@ export function MessageLengthComparison({ data, lang }: MessageLengthComparisonP
   })).sort((a, b) => b.avgLength - a.avgLength);
 
   return (
-    <div style={{ width: '100%', height: '400px', marginBottom: '20px' }}>
+    <div style={{ width: '100%', height: '400px' }}>
       <h3 style={{ marginBottom: '10px' }}>{tr.messageLengthStats}</h3>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData}>

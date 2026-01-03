@@ -53,7 +53,7 @@ export function ActivityHeatmap({ data, lang }: ActivityHeatmapProps) {
   };
 
   return (
-    <div style={{ width: '100%', marginBottom: '20px' }}>
+    <div style={{ width: '100%' }}>
       <h3 style={{ marginBottom: '10px' }}>{tr.activityHeatmap}</h3>
       <div style={{ 
         display: 'grid', 

@@ -15,7 +15,7 @@ export function MessageLengthDistribution({ data, lang }: MessageLengthDistribut
   }));
 
   return (
-    <div style={{ width: '100%', height: '400px', marginBottom: '20px' }}>
+    <div style={{ width: '100%', height: '400px' }}>
       <h3 style={{ marginBottom: '10px' }}>{tr.avgMessageLength}</h3>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData}>

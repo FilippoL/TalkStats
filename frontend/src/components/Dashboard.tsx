@@ -329,27 +329,9 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
   const applyInsightsMapping = (data: any): any => {
     if (!data || !data.insights) return data;
     
-    const mappedData = JSON.parse(JSON.stringify(data));
-    
-    // Filter insights based on deleted authors and selected authors
-    mappedData.insights = mappedData.insights.filter((insight: any) => {
-      const author = insight.author || insight.name;
-      
-      // Filter out deleted authors
-      if (deletedAuthors.has(author)) {
-        return false;
-      }
-      
-      // If we have selected authors, only show insights for selected ones
-      if (selectedAuthors.length > 0) {
-        // Check if this insight is about a selected author or a merged name
-        return selectedAuthors.includes(author);
-      }
-      
-      return true;
-    });
-    
-    return mappedData;
+    // Note: Insights don't have author information in their structure,
+    // so they can't be filtered by author. Display all insights regardless of selection.
+    return data;
   };
 
   const getEffectiveSelectedAuthors = (): string[] => {

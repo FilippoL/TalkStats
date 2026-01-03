@@ -325,6 +325,33 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
     return mappedData;
   };
 
+  // Apply author filtering to insights
+  const applyInsightsMapping = (data: any): any => {
+    if (!data || !data.insights) return data;
+    
+    const mappedData = JSON.parse(JSON.stringify(data));
+    
+    // Filter insights based on deleted authors and selected authors
+    mappedData.insights = mappedData.insights.filter((insight: any) => {
+      const author = insight.author || insight.name;
+      
+      // Filter out deleted authors
+      if (deletedAuthors.has(author)) {
+        return false;
+      }
+      
+      // If we have selected authors, only show insights for selected ones
+      if (selectedAuthors.length > 0) {
+        // Check if this insight is about a selected author or a merged name
+        return selectedAuthors.includes(author);
+      }
+      
+      return true;
+    });
+    
+    return mappedData;
+  };
+
   const getEffectiveSelectedAuthors = (): string[] => {
     // We need to send ORIGINAL author names to the API, not merged names
     // The mapping is applied client-side after data is received
@@ -434,7 +461,7 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       // Apply author mapping to the results
       setStats(applyAuthorMapping(statsData));
       setWordFreq(wordFreqData); // Word frequency doesn't need mapping as it's global
-      setInsights(insightsData);
+      setInsights(applyInsightsMapping(insightsData));
       setEmojiStats(applyEmojiMapping(emojiData));
       setRefreshProgress(100);
     } catch (err: any) {
@@ -715,10 +742,9 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
           backgroundColor: '#fff', 
           border: '1px solid #e0e0e0', 
           borderRadius: '8px', 
-          padding: '20px',
-          marginBottom: '30px'
+          padding: '20px'
         }}>
-          <h2 style={{ marginBottom: '15px' }}>{tr.insights}</h2>
+          <h2 style={{ marginBottom: '15px', marginTop: 0 }}>{tr.insights}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px' }}>
             {insights.insights.map((insight, idx) => (
               <div 
@@ -746,24 +772,24 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
       <div style={{ display: 'grid', gap: '30px' }}>
         {/* Show hourly timeline when day grouping is selected (in addition to the regular timeline) */}
         {timeGroup === 'day' && stats.grouped_data?.hourly && stats.grouped_data.hourly.length > 0 && (
-          <div id="chart-hourly-timeline">
+          <div id="chart-hourly-timeline" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
             <HourlyTimeline data={stats.grouped_data.hourly} lang={lang} />
           </div>
         )}
         
         {/* Regular timeline showing message count over time (from start date to end date) */}
         {stats.time_series.length > 0 && (
-          <div id="chart-message-timeline">
+          <div id="chart-message-timeline" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
             <MessageTimeline data={stats.time_series} timeGroup={timeGroup} lang={lang} />
           </div>
         )}
         
         {stats.author_stats.length > 0 && (
           <>
-            <div id="chart-author-activity">
+            <div id="chart-author-activity" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
               <AuthorActivity data={stats.author_stats} lang={lang} />
             </div>
-            <div id="chart-message-length">
+            <div id="chart-message-length" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
               <MessageLengthDistribution data={stats.author_stats} lang={lang} />
               <MessageLengthComparison data={stats.author_stats} lang={lang} />
             </div>
@@ -771,35 +797,37 @@ export function Dashboard({ onSessionExpired }: DashboardProps) {
         )}
         
         {stats.grouped_data?.message_lengths && stats.grouped_data.message_lengths.length > 0 && (
-          <MessageLengthHistogram messageLengths={stats.grouped_data.message_lengths} lang={lang} />
+          <div style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
+            <MessageLengthHistogram messageLengths={stats.grouped_data.message_lengths} lang={lang} />
+          </div>
         )}
         
         {stats.media_stats && (
-          <div id="chart-media-stats">
+          <div id="chart-media-stats" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
             <MediaStatistics data={stats.media_stats} timeGroup={timeGroup} totalMessages={stats.total_messages} lang={lang} />
           </div>
         )}
         
         {stats.time_series.length > 0 && timeGroup === 'hour' && (
-          <div id="chart-activity-heatmap">
+          <div id="chart-activity-heatmap" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
             <ActivityHeatmap data={stats.time_series} lang={lang} />
           </div>
         )}
         
         {wordFreq && wordFreq.words.length > 0 && (
-          <div id="chart-word-frequency">
+          <div id="chart-word-frequency" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
             <WordFrequency data={wordFreq.words} limit={30} lang={lang} />
           </div>
         )}
         
         {emojiStats && emojiStats.total_emojis > 0 && (
-          <div id="chart-emoji-stats">
+          <div id="chart-emoji-stats" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
             <EmojiStatistics data={emojiStats} lang={lang} />
           </div>
         )}
         
         {stats.grouped_data?.bestemmiometro && (
-          <div id="chart-bestemmiometro">
+          <div id="chart-bestemmiometro" style={{ backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '20px' }}>
             <Bestemmiometro data={stats.grouped_data.bestemmiometro} />
           </div>
         )}

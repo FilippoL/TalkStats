@@ -22,9 +22,9 @@ A full-stack web app that turns your boring WhatsApp chat exports into beautiful
 - **Total emoji count** - quantify the expressiveness of your conversations
 
 ### Bestemmiometro (The Blasphemy Meter)
-A *very serious* feature for **Italian chats only** that tracks... let's say *colorful expressions*. Includes 270+ patterns covering various creative combinations of Italian blasphemies.
+A *very serious* feature that tracks... let's say *colorful expressions*. Includes comprehensive wordlists from `data/bestemmie.txt` (270+ Italian patterns) and `data/swearwords.txt` (English blasphemies).
 
-**Note:** This feature is specifically designed for Italian language analysis. It will not detect blasphemies in other languages.
+**Note:** Supports both Italian and English blasphemy detection using curated wordlists.
 
 Features:
 - Per-author rankings and per-capita stats (bestemmie per 100 messages)
@@ -139,54 +139,11 @@ docker build -t whatsapp-analyzer .
 docker run -p 8000:8000 whatsapp-analyzer
 ```
 
-### Deploy to Google Cloud Run with Upstash Redis (Recommended - FREE)
-
-For production session storage, we recommend **Upstash Redis** - a serverless Redis with a generous free tier (saves ~$42/month vs Google Memorystore).
-
-#### 1. Create Free Upstash Account
-
-1. Go to [console.upstash.com](https://console.upstash.com)
-2. Sign up (GitHub login works)
-3. Click **Create Database**
-4. Name: `whatsapp-sessions`
-5. Region: **EU West** (or closest to your Cloud Run region)
-6. Type: **Regional** (free tier)
-
-#### 2. Get Your Credentials
-
-From the Upstash dashboard, copy:
-- **REST URL**: `https://xxxx.upstash.io`
-- **REST Token**: `AXxxxx...`
-
-#### 3. Update cloudbuild.yaml
-
-Edit `cloudbuild.yaml` and update with your Upstash credentials:
-
-```yaml
-substitutions:
-  _UPSTASH_URL: 'https://your-instance.upstash.io'  # Your Upstash REST URL
-  _UPSTASH_TOKEN: 'your-token-here'                  # Your Upstash REST Token
-```
-
-#### 4. Deploy
+### Deploy to Google Cloud Run
 
 ```bash
 gcloud builds submit --config cloudbuild.yaml
 ```
-
-#### Alternative: Google Memorystore (More Expensive)
-
-If you prefer Google-native services, you can use Memorystore (~$42/month):
-
-```bash
-# Create Redis instance
-gcloud redis instances create whatsapp-redis --size=1 --region=europe-west1 --redis-version=redis_7_0 --tier=basic
-
-# Create VPC connector
-gcloud compute networks vpc-access connectors create redis-connector --region=europe-west1 --range=10.8.0.0/28
-```
-
-Then update `cloudbuild.yaml` to use `REDIS_HOST` instead of Upstash variables.
 
 ---
 
